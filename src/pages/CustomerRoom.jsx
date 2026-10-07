@@ -6,7 +6,7 @@ import { useLive } from '../lib/live.jsx';
 import { CopyId, Section, SourceChip, Stat, State, StatusChip, stepWords, Table } from '../components/ui.jsx';
 import Timeline from '../components/Timeline.jsx';
 import Journey, { ApiTrace } from '../components/Journey.jsx';
-import { CustomerActions } from '../components/SessionActions.jsx';
+import { CustomerActions, DeviceSignOut } from '../components/SessionActions.jsx';
 import { ago, customerCode, dateTime, deviceCode, deviceOf, duration, num, placeOf, rupees, sessionCode } from '../lib/format';
 
 /**
@@ -97,9 +97,9 @@ export default function CustomerRoom() {
                       <td className="td"><SourceChip source={d.source} /></td><td className="td tabular">{num(d.sessions)}</td><td className="td text-2xs">{dateTime(d.first_seen_at)}</td><td className="td text-2xs">{ago(d.last_seen_at)}</td></tr>))}
                 </Table>
                 <div className="text-2xs font-semibold uppercase tracking-wider text-muted">Signed in on</div>
-                <Table head={['Device', 'Browser', 'City', 'Sign-ins', 'Last']}>
+                <Table head={['Device', 'Browser', 'City', 'Sign-ins', 'Last', '']}>
                   {data.sign_in_devices.map((d, i) => (
-                    <tr key={d.device_id || i}><td className="td text-2xs">{d.model || d.os || '—'}</td><td className="td text-2xs">{d.browser}</td><td className="td text-2xs">{d.city || '—'}</td><td className="td tabular">{num(d.sign_ins)}</td><td className="td text-2xs">{ago(d.last_at)}</td></tr>))}
+                    <tr key={d.device_id || i}><td className="td text-2xs">{d.model || d.os || '—'}</td><td className="td text-2xs">{d.browser}</td><td className="td text-2xs">{d.city || '—'}</td><td className="td tabular">{num(d.sign_ins)}</td><td className="td text-2xs">{ago(d.last_at)}</td><td className="td"><DeviceSignOut userId={c.id} deviceKey={d.device_id} onDone={reload} /></td></tr>))}
                 </Table>
                 <p className="text-2xs text-muted">{num(data.open_sign_ins.length)} sign-in{data.open_sign_ins.length === 1 ? '' : 's'} still open (they stay signed in for up to a year unless signed out).</p>
               </div>) : null}

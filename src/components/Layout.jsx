@@ -48,11 +48,12 @@ export const NAV = [
   ['Admin', [
     ['/emails', 'Emails to you', '✉️'],
     ['/admins', 'Admins', '🛡️', 'admins'],
+    ['/privacy', 'Privacy & monitoring', '🛡'],
     ['/settings', 'Settings', '⚙️'],
   ]],
 ];
 export const AVAILABLE = new Set(['/', '/live', '/log', '/customers', '/sessions', '/visitors', '/free-checks', '/payments', '/reports', '/referrals', '/sources', '/analytics',
-  '/api', '/health', '/alerts', '/audit', '/emails', '/admins', '/settings', '/search']);
+  '/api', '/health', '/alerts', '/audit', '/emails', '/admins', '/settings', '/privacy', '/search']);
 
 function useClock() {
   const [now, setNow] = useState(() => new Date());
@@ -116,6 +117,13 @@ export default function Layout({ children }) {
       }
     }
   }), [live, loadAlerts, prefs.sound, prefs.desktop]);
+
+  /* ── is optional monitoring on? (§98) — always visible, so nobody assumes it is ── */
+  const [mon, setMon] = useState(null);
+  useEffect(() => {
+    const load = () => api.monitoring({}, true).then(setMon).catch(() => {});
+    load(); const t = setInterval(load, 60000); return () => clearInterval(t);
+  }, [pathname]);
 
   /* ── where this admin is (presence, §93) ── */
   useEffect(() => { api.presence(pathname).catch(() => {}); }, [pathname]);
@@ -190,6 +198,11 @@ export default function Layout({ children }) {
               <button type="button" onClick={() => navigate('/live')} className="chip hidden border border-good-500/30 bg-white !px-2.5 !py-1 text-ink sm:inline-flex" title="On gaadipe.in now — open Live users">
                 🟢 <b className="tabular">{activeNow ?? '…'}</b> online
               </button>
+              {mon ? (
+                <button type="button" onClick={() => navigate('/privacy')} title="Optional interaction monitoring — open Privacy & monitoring"
+                  className={`chip hidden md:inline-flex ${mon.global === 'off' ? 'bg-wrong-50 text-wrong-700' : 'bg-shell text-ink'}`}>
+                  MONITORING: {mon.global === 'off' ? 'GLOBAL OFF' : mon.controls?.length ? `ACTIVE · ${mon.controls.length} paused` : 'ACTIVE'}
+                </button>) : null}
               <span className={`chip ${liveChip[1]}`} title={`Last word from the server ${staleFor}s ago`}>
                 {liveChip[0] === 'LIVE' ? <span className="live-dot h-1.5 w-1.5 rounded-full bg-good-500" /> : null}{liveChip[0]}
               </span>

@@ -7,6 +7,7 @@ import Sessions from './pages/Sessions.jsx';
 import SessionRoom from './pages/SessionRoom.jsx';
 import CustomerRoom from './pages/CustomerRoom.jsx';
 import Analytics from './pages/Analytics.jsx';
+import Privacy from './pages/Privacy.jsx';
 import Layout from './components/Layout.jsx';
 import SignIn from './pages/SignIn.jsx';
 import Overview from './pages/Overview.jsx';
@@ -61,6 +62,7 @@ export default function App() {
           <Route path="/emails" element={<Emails />} />
           <Route path="/admins" element={<Admins />} />
           <Route path="/settings" element={<Settings />} />
+          <Route path="/privacy" element={<Privacy />} />
           <Route path="/search" element={<Search />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
