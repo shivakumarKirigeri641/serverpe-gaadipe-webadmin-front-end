@@ -14,16 +14,236 @@
   .btn { @apply inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm font-semibold transition disabled:opacity-50; }
   .btn-primary { @apply btn bg-brand text-white hover:bg-brand-light; }
   .btn-quiet { @apply btn border border-line bg-white text-ink hover:bg-shell; }
+  .btn-danger { @apply btn border border-wrong-500/30 bg-wrong-50 text-wrong-700 hover:bg-wrong-50/70; }
   .input { @apply w-full rounded-lg border border-line bg-white px-3.5 py-2.5 text-[15px] text-ink outline-none transition placeholder:text-muted/60 focus:border-brand-accent focus:ring-4 focus:ring-brand-accent/10; }
   .label { @apply mb-1.5 block text-2xs font-semibold uppercase tracking-wider text-muted; }
-  .chip { @apply inline-flex items-center gap-1 whitespace-nowrap rounded-full px-2 py-0.5 text-2xs font-semibold; }
-  .th { @apply whitespace-nowrap px-3 py-2.5 text-left text-2xs font-semibold uppercase tracking-wider text-muted; }
-  .td { @apply px-3 py-2.5 align-top text-sm; }
+  .chip { @apply inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-2xs font-semibold; }
+  .th { @apply px-4 py-2.5 text-left text-2xs font-semibold uppercase tracking-wider text-muted; }
+  /* Top, not middle: one unusually tall cell would otherwise push every short
+     cell beside it to the middle of that height, and the row reads as blank. */
+  .td { @apply px-4 py-3 align-top text-sm; }
   .plate { @apply font-mono text-[13px] font-semibold tracking-wider text-ink; }
 }
 
+/*
+ * Detail on hover, without a library.
+ *
+ * Every screen here is dense, and the alternative to a hover note is either a
+ * cluttered table or a click that loses the reader's place. The note is drawn
+ * above everything, never wraps to more than a few words per line, and is
+ * invisible to a pointer so it cannot swallow the click underneath it.
+ */
+.hint { position: relative; }
+@keyframes hint-in { from { opacity: 0; transform: translateY(-3px); } to { opacity: 1; transform: none; } }
+.hint-body {
+  position: fixed; z-index: 80;
+  min-width: 180px; max-width: 340px; padding: .6rem .7rem;
+  border-radius: .6rem; border: 1px solid #e3ecea; background: #fff;
+  box-shadow: 0 12px 32px rgba(11,31,28,.12);
+  font-size: 11.5px; line-height: 1.45; color: #41514e;
+  pointer-events: none; white-space: normal;
+  animation: hint-in .12s ease-out;
+}
+
+/* The thread across the top while the panel is asking the server anything. */
+@keyframes busy-slide {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(400%); }
+}
+.busy-bar { animation: busy-slide 1.1s ease-in-out infinite; }
+
+@media print {
+  .no-print { display: none !important; }
+  body { background: #fff; }
+}
+
+/* Check vehicle: the same motion as the Pravesha panel's check. */
+@keyframes cv-rise { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+@keyframes cv-fade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes cv-unfold { from { opacity: 0; transform: translateY(-4px) scaleY(.98); } to { opacity: 1; transform: none; } }
+@keyframes cv-shine { from { transform: translateX(-120%); } to { transform: translateX(220%); } }
+.cv-rise { animation: cv-rise .38s cubic-bezier(.2, .8, .2, 1) backwards; }
+.cv-row { animation: cv-fade .3s ease-out backwards; }
+.cv-unfold { animation: cv-unfold .22s ease-out backwards; transform-origin: top; }
+.cv-tile { transition: transform .18s ease, box-shadow .18s ease, background-color .18s ease; }
+.cv-tile:hover { transform: translateY(-2px); box-shadow: 0 8px 20px rgba(15, 26, 28, .08); background-color: #fff; }
+.cv-plate { position: relative; overflow: hidden; }
+.cv-plate::after { content: ''; position: absolute; inset: 0; width: 40%; background: linear-gradient(100deg, transparent, rgba(255,255,255,.55), transparent); animation: cv-shine 1.6s .3s ease-out 1 backwards; }
+
+@media (prefers-reduced-motion: reduce) {
+  .cv-rise, .cv-row, .cv-unfold, .cv-plate::after { animation: none !important; }
+  .cv-tile, .cv-tile:hover { transition: none !important; transform: none !important; }
+}
+
+/* ───────────────────────────────────────────────────────── motion ── */
+
 @keyframes rise { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
-.rise { animation: rise .25s ease both; }
+@keyframes fade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes sweep { from { background-position: 200% 0; } to { background-position: -200% 0; } }
+@keyframes breathe { 0%, 100% { opacity: 1; } 50% { opacity: .45; } }
+
+/* Content arriving. Staggered by a few milliseconds per card so a screen
+   assembles rather than flashing into place all at once. */
+.rise { animation: rise .28s cubic-bezier(.2, .7, .3, 1) both; }
+.rise-1 { animation-delay: .04s; }
+.rise-2 { animation-delay: .08s; }
+.rise-3 { animation-delay: .12s; }
+.rise-4 { animation-delay: .16s; }
+.fade { animation: fade .2s ease both; }
+
+/* A card that can be opened says so by lifting under the pointer. One that
+   cannot must not move, or the lift stops meaning anything. */
+.lift { transition: transform .16s ease, box-shadow .16s ease; }
+.lift:hover { transform: translateY(-2px); }
+
+/* A row worth clicking. Cheaper than a lift and right for dense tables. */
+.row-hover { transition: background-color .12s ease; }
+
+/* Waiting, shaped like the thing that is coming — a table looks like a table
+   while it loads, so nothing jumps when the data lands. */
+.skeleton {
+  background: linear-gradient(90deg, #eef3f2 25%, #f7fbfa 37%, #eef3f2 63%);
+  background-size: 400% 100%;
+  animation: sweep 1.4s ease-in-out infinite;
+  border-radius: .375rem;
+}
+
+/* Something happening right now. */
+.breathe { animation: breathe 2s ease-in-out infinite; }
+
+/*
+ * EVERY ONE OF THESE STOPS when the reader has asked for less motion. Not
+ * slowed down — stopped: the point is that nothing moves.
+ */
+@media (prefers-reduced-motion: reduce) {
+  .rise, .fade, .skeleton, .breathe { animation: none !important; }
+  .lift { transition: none; }
+  .lift:hover { transform: none; }
+  * { scroll-behavior: auto !important; }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+ * THE MOTION SYSTEM (user, 2026-09-25). One set of durations and easings for
+ * the whole panel; every animation below uses them. Motion says something
+ * changed, arrived, succeeded, failed or needs attention — nothing moves on
+ * its own for decoration.
+ *
+ * Levels (Settings → Display & motion, per admin; the OS "reduce motion"
+ * always counts as at least Reduced):
+ *   full     everything below
+ *   reduced  no movement — fades, colour and state changes stay
+ *   minimal  nothing animates; changes are instant
+ * ═════════════════════════════════════════════════════════════════════════ */
+:root {
+  --m-instant: 100ms; --m-fast: 150ms; --m-normal: 220ms; --m-emph: 350ms; --m-complex: 500ms;
+  --ease-out: cubic-bezier(.2, .7, .3, 1); --ease-in: cubic-bezier(.4, 0, 1, 1); --ease-io: cubic-bezier(.4, 0, .2, 1);
+  --m-rise: 6px; --m-slide: 24px; --m-scale: .97;
+}
+html[data-motion="reduced"] { --m-rise: 0px; --m-slide: 0px; --m-scale: 1; }
+@media (prefers-reduced-motion: reduce) { :root { --m-rise: 0px; --m-slide: 0px; --m-scale: 1; } }
+html[data-motion="minimal"] *, html[data-motion="minimal"] *::before, html[data-motion="minimal"] *::after {
+  animation-duration: 1ms !important; animation-delay: 0ms !important; animation-iteration-count: 1 !important;
+  transition-duration: 1ms !important; transition-delay: 0ms !important;
+}
+
+@keyframes m-enter { from { opacity: 0; transform: translateY(var(--m-rise)); } to { opacity: 1; transform: none; } }
+@keyframes m-fade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes m-scale-in { from { opacity: 0; transform: scale(var(--m-scale)); } to { opacity: 1; transform: none; } }
+@keyframes m-scale-out { from { opacity: 1; transform: none; } to { opacity: 0; transform: scale(var(--m-scale)); } }
+@keyframes m-fade-out { from { opacity: 1; } to { opacity: 0; } }
+@keyframes m-drawer-in { from { transform: translateX(var(--m-slide)); opacity: .6; } to { transform: none; opacity: 1; } }
+@keyframes m-drawer-out { from { transform: none; opacity: 1; } to { transform: translateX(var(--m-slide)); opacity: 0; } }
+@keyframes m-drop { from { opacity: 0; transform: translateY(calc(var(--m-rise) * -0.7)); } to { opacity: 1; transform: none; } }
+@keyframes m-toast-in { from { opacity: 0; transform: translateY(calc(var(--m-rise) * 2)); } to { opacity: 1; transform: none; } }
+@keyframes m-row-new { from { opacity: 0; transform: translateX(calc(var(--m-rise) * 1.5)); } to { opacity: 1; transform: none; } }
+@keyframes m-highlight { from { background-color: rgba(18, 161, 80, .12); } to { background-color: transparent; } }
+@keyframes m-highlight-warn { from { background-color: rgba(224, 135, 0, .14); } to { background-color: transparent; } }
+@keyframes m-up { 0% { color: inherit; } 30% { color: #0a6c34; } 100% { color: inherit; } }
+@keyframes m-down { 0% { color: inherit; } 30% { color: #8f5600; } 100% { color: inherit; } }
+@keyframes m-chip-in { from { opacity: 0; transform: scale(.85); } to { opacity: 1; transform: none; } }
+@keyframes m-chip-out { from { opacity: 1; transform: none; } to { opacity: 0; transform: scale(.85); } }
+@keyframes m-ping { 0% { transform: scale(1); opacity: .55; } 80%, 100% { transform: scale(2.4); opacity: 0; } }
+@keyframes m-breathe { 0%, 100% { opacity: 1; } 50% { opacity: .55; } }
+@keyframes m-spin { to { transform: rotate(360deg); } }
+@keyframes m-draw { from { stroke-dashoffset: var(--len, 24); } to { stroke-dashoffset: 0; } }
+@keyframes m-badge { 0% { transform: scale(1); } 40% { transform: scale(1.25); } 100% { transform: scale(1); } }
+@keyframes m-grow-x { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+
+/* Arriving: a page, a card, a panel. */
+.m-enter { animation: m-enter var(--m-normal) var(--ease-out) both; }
+.m-fade { animation: m-fade var(--m-fast) var(--ease-out) both; }
+/* Items that arrive together, a few ms apart: set style={{ '--i': n }}. */
+.m-stagger > * { animation: m-enter var(--m-normal) var(--ease-out) both; animation-delay: calc(min(var(--i, 0), 12) * 35ms); }
+/* Dialogs and their backdrop; drawers from the right; dropdowns. */
+.m-overlay { animation: m-fade var(--m-fast) var(--ease-out) both; }
+.m-overlay-out { animation: m-fade-out var(--m-instant) var(--ease-in) both; }
+.m-modal { animation: m-scale-in var(--m-normal) var(--ease-out) both; }
+.m-modal-out { animation: m-scale-out var(--m-fast) var(--ease-in) both; }
+.m-drawer { animation: m-drawer-in var(--m-normal) var(--ease-out) both; }
+.m-drawer-out { animation: m-drawer-out var(--m-fast) var(--ease-in) both; }
+.m-drop { animation: m-drop var(--m-fast) var(--ease-out) both; transform-origin: top; }
+.m-toast { animation: m-toast-in var(--m-normal) var(--ease-out) both; }
+/* A row that has just arrived, and one that has just changed. */
+.m-row-new { animation: m-row-new var(--m-emph) var(--ease-out) both, m-highlight 1.2s var(--ease-out) both; }
+.m-row-changed { animation: m-highlight 1.2s var(--ease-out) both; }
+.m-row-warn { animation: m-highlight-warn 1.2s var(--ease-out) both; }
+/* A number that just went up or down: a brief tint, never a flashing card. */
+.m-up { animation: m-up var(--m-complex) var(--ease-io); }
+.m-down { animation: m-down var(--m-complex) var(--ease-io); }
+.m-chip-in { animation: m-chip-in var(--m-fast) var(--ease-out) both; }
+.m-chip-out { animation: m-chip-out var(--m-fast) var(--ease-in) both; }
+.m-badge-pop { animation: m-badge var(--m-emph) var(--ease-out); }
+.m-spin { animation: m-spin .8s linear infinite; }
+.m-draw { stroke-dasharray: var(--len, 24); animation: m-draw var(--m-emph) var(--ease-out) both; }
+.m-grow-x { animation: m-grow-x var(--m-complex) var(--ease-out) both; transform-origin: left; }
+
+/* Status dots: calm when healthy, slower amber, controlled red, and a DOWN
+   service does not move at all — it is simply, clearly down. */
+.m-dot { position: relative; display: inline-block; border-radius: 9999px; }
+.m-dot-live::after, .m-dot-critical::after { content: ''; position: absolute; inset: 0; border-radius: inherit; background: inherit; animation: m-ping 1.8s var(--ease-out) infinite; }
+.m-dot-healthy { animation: m-breathe 3.2s ease-in-out infinite; }
+.m-dot-warning { animation: m-breathe 2.2s ease-in-out infinite; }
+.m-dot-critical::after { animation-duration: 1.4s; }
+@media (prefers-reduced-motion: reduce) {
+  .m-dot-live::after, .m-dot-critical::after, .m-dot-healthy, .m-dot-warning, .m-spin { animation: none !important; }
+}
+html[data-motion="reduced"] .m-dot-live::after, html[data-motion="reduced"] .m-dot-critical::after,
+html[data-motion="reduced"] .m-dot-healthy, html[data-motion="reduced"] .m-dot-warning { animation: none !important; }
+
+/* Feedback under the finger: a press, a focus ring, a smooth hover. */
+.m-press { transition: transform var(--m-instant) var(--ease-out), background-color var(--m-fast) ease, box-shadow var(--m-fast) ease; }
+.m-press:active { transform: scale(.97); }
+.btn, .chip, .input { transition: background-color var(--m-fast) ease, border-color var(--m-fast) ease, box-shadow var(--m-fast) ease, color var(--m-fast) ease, transform var(--m-instant) ease; }
+.btn:active:not(:disabled) { transform: scale(.98); }
+:focus-visible { outline: 2px solid #0d9488; outline-offset: 2px; }
+tbody tr { transition: background-color var(--m-fast) ease; }
+/* A new row that is also a problem: it slides in and flashes amber. */
+.m-row-new.m-row-warn { animation: m-row-new var(--m-emph) var(--ease-out) both, m-highlight-warn 1.2s var(--ease-out) both; }
+/* The icon-button tooltip (IconTips.jsx): the tooltip's look, sized to its words. */
+.tip-body { display: block; padding: .3rem .55rem; border-radius: .5rem; border: 1px solid #e3ecea; background: #fff;
+  box-shadow: 0 8px 20px rgba(11,31,28,.12); font-size: 11.5px; line-height: 1.3; color: #41514e; white-space: nowrap;
+  animation: hint-in var(--m-fast) var(--ease-out); }
+/* Phones and small tablets: shorter, simpler motion — rows fade rather than
+   slide, groups arrive together, nothing large moves. */
+@media (max-width: 767px) {
+  :root { --m-slide: 12px; --m-rise: 3px; }
+  .m-row-new { animation: m-fade var(--m-fast) var(--ease-out) both, m-highlight 1s var(--ease-out) both; }
+  .m-stagger > * { animation-delay: 0ms; }
+  .m-grow-x { animation-duration: var(--m-normal); }
+}
+
+/* The sidebar's own scrollbar: always there when the menu is longer than the
+   screen, thin, and quiet until you reach for it. */
+.nav-scroll { scrollbar-width: thin; scrollbar-color: #c9d6d3 transparent; scrollbar-gutter: stable; }
+.nav-scroll::-webkit-scrollbar { width: 8px; }
+.nav-scroll::-webkit-scrollbar-track { background: transparent; }
+.nav-scroll::-webkit-scrollbar-thumb { background: #d7e2df; border-radius: 9999px; border: 2px solid #fff; }
+.nav-scroll:hover::-webkit-scrollbar-thumb { background: #b3c4c0; }
+/* The services strip scrolls sideways on a phone without a scrollbar. */
+.strip-scroll { scrollbar-width: none; }
+.strip-scroll::-webkit-scrollbar { display: none; }
+
+/* The website screens' live light (src/web). */
 @keyframes pulse-dot { 0%, 100% { opacity: 1; } 50% { opacity: .35; } }
 .live-dot { animation: pulse-dot 1.6s ease-in-out infinite; }
-@media (prefers-reduced-motion: reduce) { .rise, .live-dot { animation: none; } }
+@media (prefers-reduced-motion: reduce) { .live-dot { animation: none; } }

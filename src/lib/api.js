@@ -1,17 +1,18 @@
 /**
- * api.js — every call the website admin makes (2026-10-07).
+ * api.js — every call the panel makes.
  *
- * The same gateway, sign-in and encrypted tunnel as the main admin panel
- * (lib/secure.js is the same file): the Network tab shows ciphertext only. The
- * token is kept under its own key, and cleared the moment the gateway says the
- * session has ended.
+ * The token is the session: kept so a reload does not sign somebody out
+ * mid-task, sent on every request, and cleared the moment the gateway says the
+ * session has ended — once, centrally, so no screen has to handle it.
+ *
+ * Grows one function at a time, beside the screen that uses it.
  */
 
-import { available as secureAvailable, secureCall, secureStream } from './secure';
+import { available as secureAvailable, secureCall } from './secure';
 
 const BASE = (import.meta.env.VITE_API_BASE || '').replace(/\/$/, '');
 const P = `${BASE}/admin/api`;
-const KEY = 'gaadipe.webadmin.token';
+const KEY = 'gaadipe.admin.token';
 
 export const getToken = () => { try { return localStorage.getItem(KEY) || null; } catch { return null; } };
 export const setToken = (t) => {
@@ -21,148 +22,422 @@ export const setToken = (t) => {
 const listeners = new Set();
 export const onSignedOut = (fn) => { listeners.add(fn); return () => listeners.delete(fn); };
 const signedOut = () => { setToken(null); listeners.forEach((fn) => fn()); };
+/* The website screens (src/web) share this one request path, token and sign-out (2026-10-07). */
+export const sharedCall = (...a) => call(...a);
+export const sharedSignedOut = () => signedOut();
+export const API_PREFIX = P;
+
+/*
+ * HOW MANY QUESTIONS ARE STILL UNANSWERED.
+ *
+ * Counted here rather than screen by screen, so the thread across the top is
+ * telling the truth about the whole panel. Screens that already have content on
+ * them are the reason it exists: a table redrawing with new figures looks
+ * identical to a table that has stopped working.
+ *
+ * The live screen's own polling passes `quiet`, or the bar would flicker every
+ * few seconds all day and stop meaning anything.
+ */
+let busy = 0;
+let background = 0;
+/** Run fn with every call it makes kept off the loading bar (auto-refresh). */
+export async function quietly(fn) {
+  background += 1;
+  try { return await fn(); } finally { background -= 1; }
+}
+const busyWatchers = new Set();
+export const onBusyChange = (fn) => { busyWatchers.add(fn); fn(busy); return () => busyWatchers.delete(fn); };
+const setBusy = (d) => { busy = Math.max(0, busy + d); busyWatchers.forEach((fn) => fn(busy)); };
 
 export class ApiError extends Error {
   constructor(message, { code = 'error', status = 0, body = null } = {}) {
     super(message);
-    this.code = code; this.status = status; this.body = body;
+    this.code = code;
+    this.status = status;
+    this.body = body;
+    this.offline = code === 'offline';
   }
 }
 
-async function call(path, { method = 'GET', body, auth = true, quiet = false, timeoutMs = 25000 } = {}) {
-  const headers = {};
+/*
+ * THE CONNECTION, AS IT REALLY IS (motion system, 2026-09-25). Every request
+ * says whether the server answered: one failure is "reconnecting", three in a
+ * row "connection lost", and the next answer "restored". The header's LIVE
+ * sign reads this — it never says live when the server is not answering.
+ */
+let conn = { state: 'live', failures: 0, at: Date.now(), restored: false };
+const connWatchers = new Set();
+export const onConnChange = (fn) => { connWatchers.add(fn); fn(conn); return () => connWatchers.delete(fn); };
+function connResult(ok) {
+  const was = conn.state;
+  if (ok) {
+    if (was === 'live' && !conn.failures) return;
+    conn = { state: 'live', failures: 0, at: Date.now(), restored: was !== 'live' };
+  } else {
+    const failures = conn.failures + 1;
+    conn = { state: failures >= 3 ? 'lost' : 'reconnecting', failures, at: Date.now(), restored: false };
+  }
+  connWatchers.forEach((fn) => fn(conn));
+}
+/* Errors a person saw (not background refreshes) — the refresh button reads it. */
+let errorCount = 0;
+export const errorsSeen = () => errorCount;
+
+async function call(path, { method = 'GET', body, auth = true, timeoutMs = 25000, quiet = false } = {}) {
+  const headers = { Accept: 'application/json' };
+  if (body) headers['Content-Type'] = 'application/json';
   const token = getToken();
   if (auth && token) headers.Authorization = `Bearer ${token}`;
-  // Auto-refreshes say so: the server does not audit them again.
-  if (quiet) headers['X-Refresh'] = '1';
-  let status; let ok; let data;
+
+  let res; let data;
+  const silent = quiet || background > 0;
+  // Background refreshes say so, and the server does not audit them again.
+  if (background > 0) headers['X-Refresh'] = '1';
+  if (!silent) setBusy(1);
   try {
+    /* Encrypted end to end (lib/secure.js): the Network tab shows ciphertext only. */
     if (secureAvailable()) {
-      const out = await secureCall(P, { method, path, body, headers, timeoutMs });
-      ({ status, ok } = out); data = out.data || {};
+      const outer = {};
+      if (headers.Authorization) outer.Authorization = headers.Authorization;
+      if (headers['X-Refresh']) outer['X-Refresh'] = headers['X-Refresh'];
+      const out = await secureCall(P, { method, path, body, headers: outer, timeoutMs });
+      res = { status: out.status, ok: out.ok };
+      data = out.data || {};
     } else {
-      const res = await fetch(`${P}${path}`, {
-        method, headers: { ...headers, Accept: 'application/json', ...(body ? { 'Content-Type': 'application/json' } : {}) },
-        body: body ? JSON.stringify(body) : undefined, signal: AbortSignal.timeout(timeoutMs),
+      res = await fetch(`${P}${path}`, {
+        method, headers,
+        body: body ? JSON.stringify(body) : undefined,
+        signal: AbortSignal.timeout(timeoutMs),
       });
-      ({ status, ok } = res); data = await res.json().catch(() => ({}));
     }
   } catch (e) {
-    throw new ApiError(e.name === 'TimeoutError' ? 'The server is taking too long to answer.' : 'Cannot reach the server.', { code: 'offline' });
+    connResult(false);
+    if (!silent) errorCount += 1;
+    throw new ApiError(
+      e.name === 'TimeoutError' ? 'The server is taking too long to answer.' : 'Cannot reach the server.',
+      { code: 'offline' });
+  } finally {
+    if (!silent) setBusy(-1);
   }
-  if (status === 401 && auth) {
+  connResult(true);
+
+  if (data === undefined) data = await res.json().catch(() => ({}));
+
+  if (res.status === 401 && auth) {
     signedOut();
-    throw new ApiError(data.message || 'Your session has ended. Please sign in again.', { code: 'signed_out', status });
+    throw new ApiError(data.message || 'Your session has ended. Please sign in again.',
+      { code: 'signed_out', status: 401 });
   }
-  if (!ok) throw new ApiError(data.message || 'Something went wrong.', { code: data.error || 'error', status, body: data });
+  if (!res.ok) {
+    if (!silent) errorCount += 1;
+    throw new ApiError(data.message || 'Something went wrong.',
+      { code: data.error || 'error', status: res.status, body: data });
+  }
   return data;
 }
 
 /**
- * The live stream (lib/live.jsx). Encrypted where the browser can (HTTPS or
- * localhost); returns false where it cannot, and the caller falls back to polling.
+ * A PDF from the API, fetched with the session token rather than opened as a
+ * plain link — a link cannot carry the Authorization header, and a token in a
+ * URL would be left in browser history and server logs.
  */
-export async function stream({ onMessage, signal }) {
-  if (!secureAvailable()) return false;
+async function pdf(path) {
   const token = getToken();
+  let res;
   try {
-    await secureStream(P, { headers: token ? { Authorization: `Bearer ${token}` } : {}, onMessage, signal });
-  } catch (e) {
-    if (e.status === 401 && e.code === 'signed_out') signedOut();
-    throw e;
+    res = await fetch(`${P}${path}`, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
+  } catch {
+    throw new ApiError('Cannot reach the server.', { code: 'offline' });
   }
-  return true;
+  if (res.status === 401) {
+    signedOut();
+    throw new ApiError('Your session has ended. Please sign in again.', { code: 'signed_out', status: 401 });
+  }
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new ApiError(data.message || 'That file is not available.', { status: res.status });
+  }
+  const disposition = res.headers.get('Content-Disposition') || '';
+  const filename = (/filename="([^"]+)"/.exec(disposition) || [])[1] || 'document.pdf';
+  return { blob: await res.blob(), filename };
 }
 
 const qs = (params = {}) => {
-  const s = new URLSearchParams(Object.entries(params).filter(([, v]) => v !== undefined && v !== null && v !== '')).toString();
+  const s = new URLSearchParams(
+    Object.entries(params).filter(([, v]) => v !== undefined && v !== null && v !== '')).toString();
   return s ? `?${s}` : '';
 };
 
 export const api = {
+  /* Sign-in is by a code sent to the admin's own number. The answer to "send me
+     a code" is the same whether or not the number belongs to an admin. */
+  requestCode: (mobile) => call('/session/otp', { method: 'POST', auth: false, body: { mobile } }),
   // A wrong passcode, or too many, is an answer to show, not a failure.
   signInWithPasscode: (passcode) =>
     call('/session/passcode', { method: 'POST', auth: false, body: { passcode } })
       .catch((e) => { if (e.body && (e.status === 401 || e.status === 429)) return e.body; throw e; }),
+  verifyCode: (mobile, code) =>
+    call('/session/verify', { method: 'POST', auth: false, body: { mobile, code } })
+      .catch((e) => {
+        /* A wrong code is an answer the screen shows, not a failure it has to
+           apologise for. */
+        if (e.body && e.status === 401) return e.body;
+        throw e;
+      }),
   session: () => call('/session'),
   signOut: () => call('/session', { method: 'DELETE' }),
 
-  overview: (range, quiet) => call(`/web/overview${qs({ range })}`, { quiet }),
-  visitors: (params, quiet) => call(`/web/visitors${qs(params)}`, { quiet }),
-  visitor: (id) => call(`/web/visitors/${encodeURIComponent(id)}`),
-  customers: (params, quiet) => call(`/web/customers${qs(params)}`, { quiet }),
-  freeChecks: (range, quiet) => call(`/web/free-checks${qs({ range })}`, { quiet }),
-  requestCode: (mobile) => call('/session/otp', { method: 'POST', auth: false, body: { mobile } }),
-  verifyCode: (mobile, code) => call('/session/verify', { method: 'POST', auth: false, body: { mobile, code } })
-    .catch((e) => { if (e.body && e.status === 401) return e.body; throw e; }),
+  home: () => call('/home'),
+  // The Live Command Center (src/admin/command.js on the back end).
+  commandOverview: (params) => call(`/command/overview${qs(params)}`, { quiet: true }),
+  commandLive: (since) => call(`/command/live${qs({ since })}`, { quiet: true }),
+  commandEvents: (params) => call(`/command/events${qs(params)}`),
+  // One person's whole journey, and CSV exports (phase 3). An export is a file,
+  // fetched like a PDF so the session token never sits in a URL.
+  journey: (params) => call(`/journey${qs(params)}`),
+  // WhatsApp and vehicle lookups (phase 4).
+  whatsappStats: (params) => call(`/whatsapp/stats${qs(params)}`, { quiet: true }),
+  lookupsSummary: (params) => call(`/lookups/summary${qs(params)}`),
+  lookups: (params) => call(`/lookups${qs(params)}`),
+  // Payments and the records API (phase 5).
+  paymentsSummary: (params) => call(`/payments/summary${qs(params)}`),
+  payments: (params) => call(`/payments${qs(params)}`),
+  payment: (id) => call(`/payments/${id}`),
+  apiMonitor: (params) => call(`/api-monitor${qs(params)}`, { quiet: true }),
+  apiLog: (params) => call(`/api-monitor/log${qs(params)}`),
+  // Health, alerts, pop-ups and badges (phase 6).
+  healthServices: () => call('/health/services', { quiet: true }),
+  alerts: (params) => call(`/alerts${qs(params)}`),
+  ackAlert: (id) => call(`/alerts/${id}/ack`, { method: 'POST' }),
+  metaNews: () => call('/meta-news', { quiet: true }),
+  resolveAlert: (id, note) => call(`/alerts/${id}/resolve`, { method: 'POST', body: { note } }),
+  feed: (since) => call(`/feed${qs({ since })}`, { quiet: true }),
+  badges: () => call('/badges', { quiet: true }),
+  milestoneSeen: (customers) => call(`/milestones/${customers}/seen`, { method: 'POST', quiet: true }),
+  // Where (phase 7).
+  geoStates: (params) => call(`/geo/states${qs(params)}`),
+  geoRtos: (code, params) => call(`/geo/states/${code}${qs(params)}`),
+  geoAllRtos: (params) => call(`/geo/rtos${qs(params)}`),
+  exportCsv: (kind, params) => pdf(`/export/${kind}${qs(params)}`),
+  dashboard: () => call('/dashboard'),
+  health: () => call('/health'),
+  series: (params) => call(`/series${qs(params)}`),
+  funnel: (params) => call(`/funnel${qs(params)}`),
+  compare: () => call('/insights/compare'),
+  fleet: () => call('/insights/fleet', { timeoutMs: 60000 }),
+  heatmap: (params) => call(`/insights/heatmap${qs(params)}`),
+  finance: (params) => call(`/finance${qs(params)}`),
 
-  // The main admin's endpoints, shared (2026-10-07).
-  alerts: (params, quiet) => call(`/alerts${qs(params)}`, { quiet }),
-  alertAck: (id) => call(`/alerts/${id}/ack`, { method: 'POST', body: {} }),
-  alertResolve: (id, note) => call(`/alerts/${id}/resolve`, { method: 'POST', body: { note } }),
+  customers: (params) => call(`/customers${qs(params)}`),
+  customer: (id) => call(`/customers/${id}`),
+  pauseCustomer: (id, paused) => call(`/customers/${id}/pause`, { method: 'POST', body: { paused } }),
+
+  conversations: (params) => call(`/live/conversations${qs(params)}`),
+  thread: (mobile) => call(`/live/thread/${mobile}`),
+  pulse: (since) => call(`/live/pulse${qs({ since })}`, { quiet: true }),
+  visitors: (minutes) => call(`/live/visitors${qs({ minutes })}`, { quiet: true }),
+  visitorTrail: (id) => call(`/live/visitors/${id}/trail`),
+  liveCustomers: (params) => call(`/live/customers${qs(params)}`, { quiet: true }),
+  liveCustomerActivity: (id, params) => call(`/live/customers/${id}/activity${qs(params)}`),
+  activity: (params) => call(`/live/activity${qs(params)}`),
+
+  // The Vehicles module (user, 2026-09-25): explorer, profile, notes, tags,
+  // lists, bulk actions, patterns, signals, live, API logs, preferences.
+  vehicles: (params) => call(`/vehicles${qs(params)}`),
+  vehicle: (regNo) => call(`/vehicles/${encodeURIComponent(regNo)}`),
+  vehicleStats: () => call('/vehicles/stats', { quiet: true }),
+  vehicleQuick: (q) => call(`/vehicles/quick${qs({ q })}`, { quiet: true }),
+  vehicleMeta: () => call('/vehicles/meta', { quiet: true }),
+  vehicleReveal: (regNo, body) => call(`/vehicles/${encodeURIComponent(regNo)}/reveal`, { method: 'POST', body }),
+  vehicleRaw: (regNo, dataset) => call(`/vehicles/${encodeURIComponent(regNo)}/raw/${dataset}`),
+  vehicleRefresh: (regNo, body) => call(`/vehicles/${encodeURIComponent(regNo)}/refresh`, { method: 'POST', body, timeoutMs: 90000 }),
+  vehicleTags: (regNo, body) => call(`/vehicles/${encodeURIComponent(regNo)}/tags`, { method: 'POST', body }),
+  vehicleNote: (regNo, body) => call(`/vehicles/${encodeURIComponent(regNo)}/notes`, { method: 'POST', body: { body } }),
+  editVehicleNote: (id, body) => call(`/vehicle-notes/${id}`, { method: 'PUT', body: { body } }),
+  withdrawVehicleNote: (id) => call(`/vehicle-notes/${id}`, { method: 'DELETE' }),
+  vehicleNoteVersions: (id) => call(`/vehicle-notes/${id}/versions`),
+  vehicleBulk: (action, body) => call(`/vehicles/bulk/${action}`, { method: 'POST', body }),
+  vehicleLists: () => call('/vehicle-lists'),
+  saveVehicleList: (id, body) => call(id ? `/vehicle-lists/${id}` : '/vehicle-lists', { method: id ? 'PUT' : 'POST', body }),
+  deleteVehicleList: (id) => call(`/vehicle-lists/${id}`, { method: 'DELETE' }),
+  vehicleListItems: (id, body) => call(`/vehicle-lists/${id}/items`, { method: 'POST', body }),
+  vehicleIntel: (params) => call(`/vehicles/intel${qs(params)}`),
+  vehicleSignals: (params) => call(`/vehicles/signals${qs(params)}`),
+  vehicleLive: (since) => call(`/vehicles/live${qs({ since })}`, { quiet: true }),
+  vehicleApiLogs: (params) => call(`/vehicles/api-logs${qs(params)}`),
+  // The operations module (user, 2026-09-25): business health, the ledger.
+  businessHealth: (params) => call(`/business/health${qs(params)}`, { quiet: true }),
+  businessSummary: () => call('/business/summary', { quiet: true }),
+  profitability: (params) => call(`/profitability${qs(params)}`),
+  transactions: (params) => call(`/profitability/transactions${qs(params)}`),
+  transaction: (id) => call(`/profitability/transactions/${id}`),
+  paymentFunnel: (params) => call(`/payments/funnel${qs(params)}`),
+  abandoned: (params) => call(`/payments/abandoned${qs(params)}`),
+  refunds: (params) => call(`/payments/refunds${qs(params)}`),
+  reconRuns: () => call('/recon/runs', { quiet: true }),
+  reconItems: (params) => call(`/recon/items${qs(params)}`),
+  reconRun: (days) => call('/recon/run', { method: 'POST', body: { days } }),
+  reconReview: (id, note) => call(`/recon/items/${id}/review`, { method: 'POST', body: { note } }),
+  customerIntel: (params) => call(`/customer-intel${qs(params)}`),
+  retention: (params) => call(`/retention${qs(params)}`),
+  attribution: (params) => call(`/attribution${qs(params)}`),
+  attributionPeople: (params) => call(`/attribution/people${qs(params)}`),
+  whatsappEconomics: () => call('/whatsapp/economics'),
+  dataQuality: (params) => call(`/data-quality${qs(params)}`),
+  apiProviders: (params) => call(`/api-providers${qs(params)}`),
+  jobs: () => call('/jobs', { quiet: true }),
+  jobRuns: (name, params) => call(`/jobs/${name}/runs${qs(params)}`),
+  runJob: (name) => call(`/jobs/${name}/run`, { method: 'POST', body: { confirm: true }, timeoutMs: 120000 }),
+  pauseJob: (name, paused) => call(`/jobs/${name}/pause`, { method: 'POST', body: { confirm: true, paused } }),
+  infrastructure: () => call('/infrastructure', { quiet: true }),
+  backups: () => call('/backups'),
+  runBackup: () => call('/backups/run', { method: 'POST', body: { confirm: true }, timeoutMs: 300000 }),
+  config: () => call('/config'),
+  setGst: (percent, from) => call('/config/gst', { method: 'PUT', body: { percent, from } }),
+  flags: () => call('/flags'),
+  setFlag: (name, on) => call(`/flags/${name}`, { method: 'PUT', body: { on, confirm: true } }),
   alertRules: () => call('/alert-rules'),
   muteRule: (key, hours) => call(`/alert-rules/${key}/mute`, { method: 'POST', body: { hours } }),
-  paymentsSummary: (params, quiet) => call(`/payments/summary${qs(params)}`, { quiet }),
-  payments: (params, quiet) => call(`/payments${qs(params)}`, { quiet }),
-  payment: (id) => call(`/payments/${id}`),
-  abandoned: (params, quiet) => call(`/payments/abandoned${qs(params)}`, { quiet }),
-  apiMonitor: (params, quiet) => call(`/api-monitor${qs(params)}`, { quiet }),
-  apiLog: (params) => call(`/api-monitor/log${qs(params)}`),
-  healthServices: (quiet) => call('/health/services', { quiet }),
-  infrastructure: (quiet) => call('/infrastructure', { quiet }),
-  jobs: (quiet) => call('/jobs', { quiet }),
+  // Fleets (user, 2026-09-29).
+  fleets: (params) => call(`/fleets${qs(params)}`),
+  // Not "fleet": that name is Analytics → Fleet (/insights/fleet), and a second
+  // key of the same name silently replaced it (user, 2026-09-30).
+  fleetAccount: (id) => call(`/fleets/${id}`),
+  createFleet: (body) => call('/fleets', { method: 'POST', body }),
+  updateFleet: (id, body) => call(`/fleets/${id}`, { method: 'PATCH', body }),
+  fleetVehicles: (id, body) => call(`/fleets/${id}/vehicles`, { method: 'POST', body }),
+  quoteFleet: (id, amount_paise) => call(`/fleets/${id}/quote`, { method: 'POST', body: { amount_paise } }),
+  approveFleet: (id) => call(`/fleets/${id}/approve`, { method: 'POST', body: {} }),
+  fleetStatus: (id, to) => call(`/fleets/${id}/status`, { method: 'POST', body: { to } }),
+  fleetNote: (id, text) => call(`/fleets/${id}/note`, { method: 'POST', body: { text } }),
+  fleetSendReport: (id) => call(`/fleets/${id}/send-report`, { method: 'POST', body: {} }),
+  fleetExcel: (id) => pdf(`/fleets/${id}/excel`),
+  tasks: (params) => call(`/tasks${qs(params)}`),
+  createTask: (body) => call('/tasks', { method: 'POST', body }),
+  updateTask: (id, body) => call(`/tasks/${id}`, { method: 'PUT', body }),
+  allNotes: (params) => call(`/notes${qs(params)}`),
+  entityNotes: (type, id) => call(`/notes/${type}/${encodeURIComponent(id)}`),
+  addNote: (type, id, body) => call(`/notes/${type}/${encodeURIComponent(id)}`, { method: 'POST', body: { body } }),
+  withdrawNote: (id) => call(`/notes/${id}`, { method: 'DELETE' }),
+  permissions: () => call('/permissions'),
+  search: (q, limit) => call(`/search${qs({ q, limit })}`, { quiet: true }),
+  activityStream: (since) => call(`/activity/stream${qs({ since })}`, { quiet: true }),
+  notifications: () => call('/notifications', { quiet: true }),
+  markNotificationsRead: () => call('/notifications/read', { method: 'POST', body: {}, quiet: true }),
+  exportsList: (params) => call(`/exports${qs(params)}`),
+  createExport: (dataset, filters) => call('/exports', { method: 'POST', body: { dataset, filters }, timeoutMs: 120000 }),
+  exportFile: (id) => pdf(`/exports/${id}/file`),
+  reportDelivery: (params) => call(`/reports/delivery${qs(params)}`),
+  pref: (key) => call(`/prefs/${key}`, { quiet: true }),
+  setPref: (key, value) => call(`/prefs/${key}`, { method: 'PUT', body: { value }, quiet: true }),
+  check: (regNo, params) => call(`/check/${encodeURIComponent(regNo)}${qs(params)}`, { timeoutMs: 60000 }),
+  checkHistory: () => call('/check/history'),
+  // The admin additions of 2026-10-01.
+  waitlist: () => call('/waitlist', { quiet: true }),
+  adSpend: (params) => call(`/ad-spend${qs(params)}`),
+  saveAdSpend: (body) => call('/ad-spend', { method: 'POST', body }),
+  removeAdSpend: (id) => call(`/ad-spend/${id}`, { method: 'DELETE' }),
+  whyNotPaid: (params) => call(`/why-not-paid${qs(params)}`),
+  // The Graphs section (2026-10-03).
+  hotLeads: () => call('/hot-leads', { quiet: true }),
+  checksByCustomer: (params) => call(`/checks-by-customer${qs(params)}`, { quiet: true }),
+  dataRequests: () => call('/data-requests'),
+  giftCustomers: (params) => call(`/gifts/customers${qs(params)}`),
+  grantGifts: (body) => call('/gifts/grant', { method: 'POST', body }),
+  giftAuto: () => call('/gifts/auto'),
+  setGiftAuto: (body) => call('/gifts/auto', { method: 'POST', body }),
+  revokeGifts: (userId) => call(`/gifts/${userId}/revoke`, { method: 'POST', body: {} }),
+  supportInbox: (params) => call(`/support-inbox${qs(params)}`),
+  checkSupportInbox: () => call('/support-inbox/check', { method: 'POST', body: {} }),
+  supportInboxDone: (id, done = true) => call(`/support-inbox/${id}/done`, { method: 'POST', body: { done } }),
+  eraseDataRequest: (id) => call(`/data-requests/${id}/erase`, { method: 'POST', body: { confirm: true } }),
+  rejectDataRequest: (id, note) => call(`/data-requests/${id}/reject`, { method: 'POST', body: { note } }),
+  adReturn: (params) => call(`/ad-return${qs(params)}`),
+  saveAdReturnSpend: (body) => call('/ad-return/spend', { method: 'POST', body }),
+  // Phone notifications (2026-10-03).
+  pushKey: () => call('/push/key', { quiet: true }),
+  pushSubscribe: (subscription, device) => call('/push/subscribe', { method: 'POST', body: { subscription, device } }),
+  pushUnsubscribe: (endpoint) => call('/push/unsubscribe', { method: 'POST', body: { endpoint } }),
+  pushTest: () => call('/push/test', { method: 'POST', body: {} }),
+  graph: (page, params) => call(`/graphs/${page}${qs(params)}`, { quiet: true }),
+  graphDrill: (page, params) => call(`/graphs/${page}/drill${qs(params)}`, { quiet: true }),
+  waLimit: () => call('/whatsapp/limit', { quiet: true }),
+  broadcastCosts: () => call('/whatsapp/broadcast-costs'),
+  waReply: (mobile, text) => call('/whatsapp/reply', { method: 'POST', body: { mobile, text } }),
+  checkSaved: (regNo) => call(`/check/${encodeURIComponent(regNo)}/saved`),
+
+  blocks: (params) => call(`/blocks${qs(params)}`),
+  block: (kind, value, reason) => call('/blocks', { method: 'POST', body: { kind, value, reason } }),
+  release: (id) => call(`/blocks/${id}/release`, { method: 'POST' }),
+  ownerClaims: (params) => call(`/owner-claims${qs(params)}`),
+  ownerClaimAction: (id, action, note) => call(`/owner-claims/${id}/${action}`, { method: 'POST', body: { note } }),
+  ownerPhotos: (view) => call(`/owner-photos${qs({ view })}`),
+  ownerPhotoFile: (id) => pdf(`/owner-photos/${id}/photo`),
+  ownerPhotoAction: (id, action, body = {}) => call(`/owner-photos/${id}/${action}`, { method: 'POST', body }),
+  saveOwnerPhotoSettings: (settings) => call('/owner-photos/settings', { method: 'PUT', body: { settings } }),
+  ownerCheckAlerts: () => call('/owner-check-alerts'),
+  saveOwnerCheckAlertSettings: (settings) => call('/owner-check-alerts/settings', { method: 'PUT', body: { settings } }),
+
+  reports: (params) => call(`/reports${qs(params)}`),
+  invoices: (params) => call(`/invoices${qs(params)}`),
+  reportPdf: (id, download) => pdf(`/reports/${id}/file${download ? '?download=1' : ''}`),
+  reportAdminPdf: (id, download) => pdf(`/reports/${id}/admin-view${download ? '?download=1' : ''}`),
+  invoicePdf: (id, download) => pdf(`/invoices/${id}/file${download ? '?download=1' : ''}`),
+
+  settings: () => call('/settings'),
+  saveSettings: (settings) => call('/settings', { method: 'PUT', body: { settings } }),
+  savePlan: (code, plan) => call(`/plans/${code}`, { method: 'PUT', body: plan }),
+
+  policy: (slug) => call(`/policies/${slug}`),
+  savePolicy: (slug, id, clause) => call(`/policies/${slug}/${id}`, { method: 'PUT', body: clause }),
+  addPolicy: (slug, clause) => call(`/policies/${slug}`, { method: 'POST', body: clause }),
+
+  feedback: (params) => call(`/feedback${qs(params)}`),
+  approveFeedback: (id, body) => call(`/feedback/${id}/approve`, { method: 'POST', body }),
+  unapproveFeedback: (id) => call(`/feedback/${id}/unapprove`, { method: 'POST', body: {} }),
   audit: (params) => call(`/audit${qs(params)}`),
-  reports: (params, quiet) => call(`/reports${qs(params)}`, { quiet }),
-  gpReferrals: (params, quiet) => call(`/gp-referrals${qs(params)}`, { quiet }),
-  search: (q) => call(`/search${qs({ q, limit: 8 })}`, { quiet: true }),
+  signIns: (params) => call(`/sign-ins${qs(params)}`),
+  sessions: (params) => call(`/sessions${qs(params)}`),
+  securityEvents: (params) => call(`/security-events${qs(params)}`),
+  tickets: (params) => call(`/tickets${qs(params)}`),
+  replyTicket: (id, text) => call(`/tickets/${id}/reply`, { method: 'POST', body: { text } }),
+  closeTicket: (id) => call(`/tickets/${id}/close`, { method: 'POST', body: {} }),
+  gpReferrals: (params) => call(`/gp-referrals${qs(params)}`),
+  referrals: (params) => call(`/referrals${qs(params)}`),
+  revokeReferralCredit: (id, reason) => call(`/referrals/credits/${id}/revoke`, { method: 'POST', body: { reason } }),
+  quizpeConsents: () => call('/quizpe-consents'),
+  referralLinks: () => call('/referral-links'),
+  customerEmails: (params) => call(`/customer-emails${qs(params)}`),
+  previewCustomerEmail: (body) => call('/customer-emails/preview', { method: 'POST', body }),
+  testCustomerEmail: (body) => call('/customer-emails/test', { method: 'POST', body }),
+  sendCustomerEmail: (body) => call('/customer-emails/send', { method: 'POST', body }),
+  cancelCustomerEmail: (id) => call(`/customer-emails/campaigns/${id}/cancel`, { method: 'POST', body: {} }),
+  broadcasts: (params) => call(`/broadcasts${qs(params)}`),
+  broadcastTargets: (id) => call(`/broadcasts/${id}/targets`),
+  setTemplateStatus: (body) => call('/broadcasts/templates/status', { method: 'POST', body }),
+  previewBroadcast: (body) => call('/broadcasts/preview', { method: 'POST', body }),
+  sendBroadcast: (body) => call('/broadcasts/send', { method: 'POST', body }),
+  cancelBroadcast: (id) => call(`/broadcasts/${id}/cancel`, { method: 'POST', body: {} }),
+  broadcastPlans: () => call('/broadcast-plans', { quiet: true }),
+  createBroadcastPlan: (body) => call('/broadcast-plans', { method: 'POST', body }),
+  broadcastRoom: () => call('/broadcast-room', { quiet: true }),
+  broadcastRoomTier: () => call('/broadcast-room/tier', { quiet: true }),
+  broadcastRoomSuggest: (params) => call(`/broadcast-room/suggest${qs(params)}`),
+  broadcastRoomSend: (body) => call('/broadcast-room/send', { method: 'POST', body }),
+  broadcastPlanAction: (id, action) => call(`/broadcast-plans/${id}/${action}`, { method: 'POST', body: {} }),
+  freeReports: (params) => call(`/free-reports${qs(params)}`),
+  freeReportsCustomer: (id) => call(`/free-reports/customer/${id}`),
+  referralLinkAction: (userId, action, reason) => call(`/referral-links/${userId}/${action}`, { method: 'POST', body: { reason } }),
+  reportAccess: (mobile) => call(`/report-access${qs({ mobile })}`),
+  grantReport: (body) => call('/report-access/grant', { method: 'POST', body }),
+  revokeReport: (body) => call('/report-access/revoke', { method: 'POST', body }),
+  contactMessages: (params) => call(`/contact-messages${qs(params)}`),
+  setContactStatus: (id, status) => call(`/contact-messages/${id}`, { method: 'PUT', body: { status } }),
+  cleanPreview: () => call('/maintenance/preview'),
+  cleanDb: () => call('/maintenance/clean', { method: 'POST', body: { confirm: 'CLEAN' }, timeoutMs: 60000 }),
+  /* A file, fetched like the PDFs: outside the encrypted envelope, with the session token. */
+  backupDb: () => pdf('/maintenance/backup?confirm=DOWNLOAD'),
   admins: () => call('/admins'),
   addAdmin: (body) => call('/admins', { method: 'POST', body }),
   setAdminActive: (id, active) => call(`/admins/${id}/active`, { method: 'POST', body: { active } }),
-  getPref: (key) => call(`/prefs/${key}`, { quiet: true }),
-  setPref: (key, value) => call(`/prefs/${key}`, { method: 'PUT', body: { value }, quiet: true }),
-  mySessions: () => call('/web/me/sessions'),
-  endMySessions: (which) => call(`/web/me/sessions/${which}/end`, { method: 'POST', body: {} }),
-  presence: (screen, entity) => call('/web/presence', { method: 'POST', body: { screen, entity }, quiet: true }),
-  live: (quiet) => call('/web/live', { quiet }),
-  webSessions: (params, quiet) => call(`/web/sessions${qs(params)}`, { quiet }),
-  webSession: (id, quiet) => call(`/web/sessions/${encodeURIComponent(id)}`, { quiet }),
-  webCustomer: (id, quiet) => call(`/web/customers/${encodeURIComponent(id)}`, { quiet }),
-  webSearch: (q) => call(`/web/search${qs({ q })}`, { quiet: true }),
-  monitoring: (params, quiet) => call(`/web/monitoring${qs(params)}`, { quiet }),
-  setMonitoring: (body) => call('/web/monitoring', { method: 'POST', body })
-    .then((out) => { window.dispatchEvent(new Event('webadmin:monitoring')); return out; }),
-  endVisit: (id, reason) => call(`/web/sessions/${encodeURIComponent(id)}/end`, { method: 'POST', body: { reason } }),
-  signOutCustomer: (id, deviceKey, reason) => call(`/web/customers/${id}/sign-out`, { method: 'POST', body: { device_key: deviceKey || undefined, reason } }),
-  customerFlags: (id) => call(`/web/customers/${id}/flags`),
-  addFlag: (id, flag, reason) => call(`/web/customers/${id}/flags`, { method: 'POST', body: { flag, reason } }),
-  clearFlag: (flagId) => call(`/web/flags/${flagId}/clear`, { method: 'POST', body: {} }),
-  resendConfirmation: (id) => call(`/web/customers/${id}/resend-confirmation`, { method: 'POST', body: {} }),
-  exportCustomer: (id) => call(`/web/customers/${id}/export`),
-  settings: () => call('/settings'),
-  saveSettings: (settings) => call('/settings', { method: 'PUT', body: { settings } }),
-  customerEmails: () => call('/customer-emails'),
-  emailPreview: (body) => call('/customer-emails/preview', { method: 'POST', body }),
-  emailTest: (body) => call('/customer-emails/test', { method: 'POST', body }),
-  emailSend: (body) => call('/customer-emails/send', { method: 'POST', body }),
-  emailCancel: (id) => call(`/customer-emails/campaigns/${id}/cancel`, { method: 'POST', body: {} }),
-  askToConfirm: () => call('/customer-emails/ask-to-confirm', { method: 'POST', body: {} }),
-  transfers: (status) => call(`/web/transfers${qs({ status })}`),
-  decideTransfer: (id, approve, note) => call(`/web/transfers/${id}/${approve ? 'approve' : 'reject'}`, { method: 'POST', body: { note } }),
-  serverLog: (params) => call(`/web/server-log${qs(params)}`, { quiet: true }),
-  leads: (params, quiet) => call(`/web/leads${qs(params)}`, { quiet }),
-  stuck: (seconds, quiet) => call(`/web/stuck${qs({ seconds })}`, { quiet }),
-  abandonedVisits: (range, quiet) => call(`/web/abandoned${qs({ range })}`, { quiet }),
-  insights: (range, quiet) => call(`/web/insights${qs({ range })}`, { quiet }),
-  breakdown: (range, quiet) => call(`/web/breakdown${qs({ range })}`, { quiet }),
-  vehicle: (reg) => call(`/web/vehicles/${encodeURIComponent(reg)}`),
-  series: (range, quiet) => call(`/web/analytics/series${qs({ range })}`, { quiet }),
-  analyticsSummary: (range, quiet) => call(`/web/analytics/summary${qs({ range })}`, { quiet }),
-  funnel: (range, quiet) => call(`/web/funnel${qs({ range })}`, { quiet }),
-  funnelPeople: (params) => call(`/web/funnel/people${qs(params)}`),
-  notes: (type, id) => call(`/notes/${type}/${id}`),
-  addNote: (type, id, body) => call(`/notes/${type}/${id}`, { method: 'POST', body: { body } }),
-
-  log: (params, quiet) => call(`/web/log${qs(params)}`, { quiet }),
-  emails: (quiet) => call('/web/emails', { quiet }),
-  setEmail: (key, on) => call(`/web/emails/${encodeURIComponent(key)}`, { method: 'PUT', body: { on } }),
 };

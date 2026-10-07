@@ -1,85 +1,205 @@
-import { Navigate, Route, Routes } from 'react-router-dom';
-import { useSession } from './lib/session.jsx';
-import { PrefsProvider } from './lib/prefs.jsx';
-import { LiveProvider } from './lib/live.jsx';
-import Live from './pages/Live.jsx';
-import Sessions from './pages/Sessions.jsx';
-import SessionRoom from './pages/SessionRoom.jsx';
-import CustomerRoom from './pages/CustomerRoom.jsx';
-import Analytics from './pages/Analytics.jsx';
-import Privacy from './pages/Privacy.jsx';
-import Leads from './pages/Leads.jsx';
-import Insights from './pages/Insights.jsx';
-import Vehicles from './pages/Vehicles.jsx';
-import Broadcast from './pages/Broadcast.jsx';
-import Transfers from './pages/Transfers.jsx';
-import ServerLog from './pages/ServerLog.jsx';
-import Layout from './components/Layout.jsx';
-import SignIn from './pages/SignIn.jsx';
-import Overview from './pages/Overview.jsx';
-import Sources from './pages/Sources.jsx';
-import Visitors from './pages/Visitors.jsx';
-import Customers from './pages/Customers.jsx';
-import FreeChecks from './pages/FreeChecks.jsx';
-import Log from './pages/Log.jsx';
-import Emails from './pages/Emails.jsx';
-import Alerts from './pages/Alerts.jsx';
+import { Suspense } from 'react';
+import { Routes, Route, Navigate } from 'react-router-dom';
+import { useSession } from './lib/session';
+// The website admin's sign-in: the panel passcode, or a code by SMS (2026-10-07).
+import SignIn from './web/pages/SignIn.jsx';
+import Dashboard from './pages/Dashboard.jsx';
+import Home from './pages/Home.jsx';
+import CommandCenter from './pages/CommandCenter.jsx';
+import Journey from './pages/Journey.jsx';
+import WhatsAppCenter from './pages/WhatsAppCenter.jsx';
+import Lookups from './pages/Lookups.jsx';
 import Payments from './pages/Payments.jsx';
 import ApiMonitor from './pages/ApiMonitor.jsx';
-import Health from './pages/Health.jsx';
-import Audit from './pages/Audit.jsx';
-import Reports from './pages/Reports.jsx';
+import Alerts from './pages/Alerts.jsx';
+import Geo from './pages/Geo.jsx';
+import Conversations from './pages/Conversations.jsx';
+import Campaigns from './pages/Campaigns.jsx';
+import Customers from './pages/Customers.jsx';
+import Fleets from './pages/fleets/Fleets.jsx';
+import FleetDetail from './pages/fleets/FleetDetail.jsx';
+import SignIns from './pages/SignIns.jsx';
+import Security from './pages/Security.jsx';
 import Referrals from './pages/Referrals.jsx';
-import Admins from './pages/Admins.jsx';
-import Search from './pages/Search.jsx';
+import GpReferrals from './pages/GpReferrals.jsx';
+import Tickets from './pages/Tickets.jsx';
+import ReportAccess from './pages/ReportAccess.jsx';
+import CustomerEmails from './pages/CustomerEmails.jsx';
+import Broadcast from './pages/Broadcast.jsx';
+import FreeReports from './pages/FreeReports.jsx';
+import Live from './pages/Live.jsx';
+import VehicleExplorer from './pages/vehicles/Explorer.jsx';
+import BusinessHealth from './pages/ops/BusinessHealth.jsx';
+import Profitability from './pages/ops/Profitability.jsx';
+import FinanceExport from './pages/ops/FinanceExport.jsx';
+import Reconciliation from './pages/ops/Reconciliation.jsx';
+import PaymentFailures from './pages/ops/PaymentFailures.jsx';
+import Abandoned from './pages/ops/Abandoned.jsx';
+import Refunds from './pages/ops/Refunds.jsx';
+import DropOff from './pages/ops/DropOff.jsx';
+import CustomerIntel from './pages/ops/CustomerIntel.jsx';
+import Retention from './pages/ops/Retention.jsx';
+import Attribution from './pages/ops/Attribution.jsx';
+import WhatsAppOps from './pages/ops/WhatsAppOps.jsx';
+import AdSpend from './pages/ops/AdSpend.jsx';
+import WhyNotPaid from './pages/ops/WhyNotPaid.jsx';
+import DataQuality from './pages/ops/DataQuality.jsx';
+import ApiProviders from './pages/ops/ApiProviders.jsx';
+import Jobs from './pages/ops/Jobs.jsx';
+import Infrastructure from './pages/ops/Infrastructure.jsx';
+import Backups from './pages/ops/Backups.jsx';
+import Configuration from './pages/ops/Configuration.jsx';
+import FeatureFlags from './pages/ops/FeatureFlags.jsx';
+import AlertRules from './pages/ops/AlertRules.jsx';
+import Tasks from './pages/ops/Tasks.jsx';
+import Notes from './pages/ops/Notes.jsx';
+import Permissions from './pages/ops/Permissions.jsx';
+import SearchResults from './pages/ops/SearchResults.jsx';
+import LiveActivity from './pages/ops/LiveActivity.jsx';
+import ExportCenter from './pages/ops/ExportCenter.jsx';
+import Delivery from './pages/ops/Delivery.jsx';
+import Preferences from './pages/ops/Preferences.jsx';
+import VehicleProfile from './pages/vehicles/Profile.jsx';
+import VehicleLists from './pages/vehicles/Lists.jsx';
+import VehicleInsights from './pages/vehicles/Insights.jsx';
+import VehicleApiLogs from './pages/vehicles/ApiLogs.jsx';
+/* Imported like every other screen, NOT lazily (user, 2026-09-25). It used to
+   be lazy(() => import('./pages/Analytics.jsx')) to keep the charts out of the
+   first download — but the production obfuscator encodes that path string
+   before Vite sees it, so no chunk was built and the browser asked for
+   /assets/pages/Analytics.jsx, got index.html back, and the screen never
+   opened. Only production was affected: development is not obfuscated. */
+import Analytics from './pages/Analytics.jsx';
+import Graphs from './pages/graphs/Graphs.jsx';
+import Finance from './pages/Finance.jsx';
+import Documents from './pages/Documents.jsx';
+import Check from './pages/Check.jsx';
+import Blocks from './pages/Blocks.jsx';
+import OwnerClaims from './pages/ops/OwnerClaims.jsx';
+import OwnerPhotos from './pages/ops/OwnerPhotos.jsx';
+import HotLeads from './pages/ops/HotLeads.jsx';
+import ChecksByCustomer from './pages/ops/ChecksByCustomer.jsx';
+import AdReturn from './pages/ops/AdReturn.jsx';
+import DataRequests from './pages/ops/DataRequests.jsx';
+import SupportInbox from './pages/ops/SupportInbox.jsx';
+import GiftReports from './pages/ops/GiftReports.jsx';
+import Feedback from './pages/Feedback.jsx';
 import Settings from './pages/Settings.jsx';
+import Policies from './pages/Policies.jsx';
+import People from './pages/People.jsx';
+import Audit from './pages/Audit.jsx';
+import Health from './pages/Health.jsx';
+/* The website screens (gaadipe.in and its chat), under /web (2026-10-07). */
+import WebApp from './web/WebApp.jsx';
 
 /**
- * THE WEBSITE ADMIN (user, 2026-10-07): the operations centre for gaadipe.in —
- * live customers, their journeys, payments, APIs, alerts — on the same server,
- * sign-in and permissions as the main admin panel.
+ * Nothing is drawn until the panel knows who is signed in — a dashboard full of
+ * empty boxes behind an expired session looks like a broken product rather than
+ * a finished one.
  */
 export default function App() {
   const { me, ready } = useSession();
-  if (!ready) return <div className="grid min-h-screen place-items-center text-sm text-muted">Loading…</div>;
+
+  if (!ready) {
+    return <div className="grid min-h-screen place-items-center text-sm text-muted">Loading…</div>;
+  }
   if (!me) return <SignIn />;
+
   return (
-    <PrefsProvider><LiveProvider>
-      <Layout>
-        <Routes>
-          <Route path="/" element={<Overview />} />
-          <Route path="/live" element={<Live />} />
-          <Route path="/log" element={<Log />} />
-          <Route path="/customers" element={<Customers />} />
-          <Route path="/customers/:id" element={<CustomerRoom />} />
-          <Route path="/sessions" element={<Sessions />} />
-          <Route path="/sessions/:id" element={<SessionRoom />} />
-          <Route path="/visitors" element={<Visitors />} />
-          <Route path="/free-checks" element={<FreeChecks />} />
-          <Route path="/payments" element={<Payments />} />
-          <Route path="/reports" element={<Reports />} />
-          <Route path="/referrals" element={<Referrals />} />
-          <Route path="/sources" element={<Sources />} />
-          <Route path="/analytics" element={<Analytics />} />
-          <Route path="/api" element={<ApiMonitor />} />
-          <Route path="/health" element={<Health />} />
-          <Route path="/alerts" element={<Alerts />} />
-          <Route path="/audit" element={<Audit />} />
-          <Route path="/emails" element={<Emails />} />
-          <Route path="/admins" element={<Admins />} />
-          <Route path="/settings" element={<Settings />} />
-          <Route path="/privacy" element={<Privacy />} />
-          <Route path="/leads" element={<Leads />} />
-          <Route path="/insights" element={<Insights />} />
-          <Route path="/vehicles" element={<Vehicles />} />
-          <Route path="/vehicles/:reg" element={<Vehicles />} />
-          <Route path="/broadcast" element={<Broadcast />} />
-          <Route path="/transfers" element={<Transfers />} />
-          <Route path="/server-log" element={<ServerLog />} />
-          <Route path="/search" element={<Search />} />
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
-      </Layout>
-    </LiveProvider></PrefsProvider>
+    <Routes>
+      {/* The Command Center is the start page; the previous Home, with its
+          "Needs you" list, stays as Overview. */}
+      {/* Business Health is the owner's first screen (operations module, 2026-09-25);
+          the Command Center keeps everything it had at /command. */}
+      <Route path="/" element={<BusinessHealth />} />
+      <Route path="/command" element={<CommandCenter />} />
+      <Route path="/profitability" element={<Profitability />} />
+      <Route path="/finance/export" element={<FinanceExport />} />
+      <Route path="/payments/reconciliation" element={<Reconciliation />} />
+      <Route path="/payments/failures" element={<PaymentFailures />} />
+      <Route path="/payments/abandoned" element={<Abandoned />} />
+      <Route path="/payments/refunds" element={<Refunds />} />
+      <Route path="/drop-off" element={<DropOff />} />
+      <Route path="/customer-intelligence" element={<CustomerIntel />} />
+      <Route path="/retention" element={<Retention />} />
+      <Route path="/attribution" element={<Attribution />} />
+      <Route path="/whatsapp/operations" element={<WhatsAppOps />} />
+      <Route path="/ad-spend" element={<AdSpend />} />
+      <Route path="/why-not-paid" element={<WhyNotPaid />} />
+      <Route path="/data-quality" element={<DataQuality />} />
+      <Route path="/api-providers" element={<ApiProviders />} />
+      <Route path="/jobs" element={<Jobs />} />
+      <Route path="/infrastructure" element={<Infrastructure />} />
+      <Route path="/backups" element={<Backups />} />
+      <Route path="/configuration" element={<Configuration />} />
+      <Route path="/flags" element={<FeatureFlags />} />
+      <Route path="/alert-rules" element={<AlertRules />} />
+      <Route path="/tasks" element={<Tasks />} />
+      <Route path="/notes" element={<Notes />} />
+      <Route path="/permissions" element={<Permissions />} />
+      <Route path="/search" element={<SearchResults />} />
+      <Route path="/activity" element={<LiveActivity />} />
+      <Route path="/exports" element={<ExportCenter />} />
+      <Route path="/reports/delivery" element={<Delivery />} />
+      <Route path="/preferences" element={<Preferences />} />
+      <Route path="/overview" element={<Home />} />
+      <Route path="/journey" element={<Journey />} />
+      <Route path="/whatsapp" element={<WhatsAppCenter />} />
+      <Route path="/lookups" element={<Lookups />} />
+      <Route path="/payments" element={<Payments />} />
+      <Route path="/api-monitor" element={<ApiMonitor />} />
+      <Route path="/alerts" element={<Alerts />} />
+      <Route path="/where" element={<Geo />} />
+      {/* The old numbers screen keeps its place for anyone who wants it. */}
+      <Route path="/dashboard" element={<Dashboard />} />
+      <Route path="/conversations" element={<Conversations />} />
+      <Route path="/campaigns" element={<Campaigns />} />
+      <Route path="/live" element={<Live />} />
+      <Route path="/customers" element={<Customers />} />
+      <Route path="/fleets" element={<Fleets />} />
+      <Route path="/fleets/:id" element={<FleetDetail />} />
+      <Route path="/sign-ins" element={<SignIns />} />
+      <Route path="/security" element={<Security />} />
+      <Route path="/referrals" element={<GpReferrals />} />
+      {/* QuizPe is switched off; its history stays reachable for anyone holding a credit. */}
+      <Route path="/referrals-quizpe" element={<Referrals />} />
+      <Route path="/report-access" element={<ReportAccess />} />
+      <Route path="/customer-emails" element={<CustomerEmails />} />
+      <Route path="/broadcast" element={<Broadcast />} />
+      <Route path="/tickets" element={<Tickets />} />
+      <Route path="/free-reports" element={<FreeReports />} />
+      {/* The Vehicles module (user, 2026-09-25). */}
+      <Route path="/vehicles" element={<VehicleExplorer />} />
+      <Route path="/vehicles/lists" element={<VehicleLists />} />
+      <Route path="/vehicles/insights" element={<VehicleInsights />} />
+      <Route path="/vehicles/api-logs" element={<VehicleApiLogs />} />
+      <Route path="/vehicles/:reg" element={<VehicleProfile />} />
+      <Route path="/graphs" element={<Graphs />} />
+      <Route path="/graphs/:page" element={<Graphs />} />
+      <Route path="/analytics" element={
+        <Suspense fallback={<div className="grid min-h-screen place-items-center text-sm text-muted">Loading charts…</div>}>
+          <Analytics />
+        </Suspense>} />
+      <Route path="/finance" element={<Finance />} />
+      <Route path="/documents" element={<Documents />} />
+      <Route path="/check" element={<Check />} />
+      <Route path="/blocks" element={<Blocks />} />
+      <Route path="/owner-claims" element={<OwnerClaims />} />
+      <Route path="/owner-photos" element={<OwnerPhotos />} />
+      <Route path="/hot-leads" element={<HotLeads />} />
+      <Route path="/checks-by-customer" element={<ChecksByCustomer />} />
+      <Route path="/ad-return" element={<AdReturn />} />
+      <Route path="/data-requests" element={<DataRequests />} />
+      <Route path="/support-inbox" element={<SupportInbox />} />
+      <Route path="/gift-reports" element={<GiftReports />} />
+      <Route path="/feedback" element={<Feedback />} />
+      <Route path="/settings" element={<Settings />} />
+      <Route path="/policies" element={<Policies />} />
+      <Route path="/people" element={<People />} />
+      <Route path="/audit" element={<Audit />} />
+      <Route path="/health" element={<Health />} />
+      <Route path="/web/*" element={<WebApp />} />
+      <Route path="*" element={<Navigate to="/" replace />} />
+    </Routes>
   );
 }

@@ -1,76 +1,390 @@
-import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { useLive } from '../lib/live.jsx';
-import { CopyId, SourceChip, StatusChip, stepWords, Table } from '../components/ui.jsx';
-import { ago, customerCode, deviceOf, duration, num, placeOf, sessionCode } from '../lib/format';
+import { useEffect, useState, useCallback, useRef } from 'react';
+import { api } from '../lib/api';
+import { mobile as fmtMobile, ago, dateTime, count, plate as fmtPlate, duration } from '../lib/format';
+import Shell from '../components/Shell.jsx';
+import CustomerActivity from '../components/CustomerActivity.jsx';
+import ReplyBox, { windowLeft } from '../components/ReplyBox.jsx';
+import { Banner, Chip, Empty, Spinner, Failed, Hint, Modal } from '../components/ui.jsx';
 
 /**
- * LIVE USERS (spec §6–7, §99): everyone on gaadipe.in right now, from the live
- * stream — no reloading. Each row: who (or "anonymous"), status, the step of
- * the journey and what they last did, what is on their screen, where they came
- * from, device and place, how long they have been here. Tap one for its
- * session control room.
+ * What is happening right now.
+ *
+ * POLLED, NOT PUSHED: a few seconds of delay costs nothing here, and polling
+ * survives a restart, a proxy and a laptop waking from sleep without any
+ * reconnect logic to get wrong. The poll asks only for what happened after the
+ * last message it saw, so the cost does not grow with the day.
+ *
+ * The left column is conversations, newest first. The right is the raw stream —
+ * every message in and out as it lands, which is the thing worth watching while
+ * a change is being tested.
  */
-const FILTERS = [['all', 'Everyone'], ['ONLINE', 'Online'], ['IDLE', 'Idle'], ['HIDDEN', 'Tab hidden'], ['signed', 'Signed in'], ['anon', 'Anonymous'], ['pay', 'At payment']];
+const TICK_MS = 4000;
 
 export default function Live() {
-  const { presence, conn } = useLive();
-  const navigate = useNavigate();
-  const [filter, setFilter] = useState('all');
-  const [, tick] = useState(0);
-  useEffect(() => { const t = setInterval(() => tick((n) => n + 1), 1000); return () => clearInterval(t); }, []);
-  const c = presence?.counts || {};
-  const rows = (presence?.rows || []).filter((r) => filter === 'all' || r.status === filter
-    || (filter === 'signed' && r.user_id) || (filter === 'anon' && !r.user_id) || (filter === 'pay' && /pay/.test(r.step || '')));
+  const [pulse, setPulse] = useState(null);
+  const [stream, setStream] = useState([]);
+  const [rows, setRows] = useState(null);
+  const [error, setError] = useState(null);
+  const [q, setQ] = useState('');
+  const [openMobile, setOpenMobile] = useState(null);
+  // "Can message now" (user, 2026-10-01): only people inside their 24-hour window.
+  const [nowOnly, setNowOnly] = useState(false);
+  const [visitors, setVisitors] = useState(null);
+  const [openVisit, setOpenVisit] = useState(null);
+  const [paused, setPaused] = useState(false);
+  const since = useRef(null);
+
+  const poll = useCallback(async () => {
+    try {
+      const out = await api.pulse(since.current);
+      since.current = out.last_message_id || since.current;
+      setPulse(out);
+      if (out.messages.length) {
+        // Newest last, capped: a screen left open all day must not grow until
+        // the tab runs out of memory.
+        // Overlapping polls can return the same messages: each is shown once.
+        setStream((s) => { const seen = new Set(s.map((m) => m.id)); return [...s, ...out.messages.filter((m) => !seen.has(m.id))].slice(-200); });
+      }
+    } catch (e) { setError(e); }
+  }, []);
+
+  const loadRows = useCallback(async () => {
+    try { setRows((await api.conversations({ q, limit: 60 })).rows); }
+    catch (e) { setError(e); }
+  }, [q]);
+
+  const loadVisitors = useCallback(async () => {
+    try { setVisitors((await api.visitors(30)).rows); } catch { /* the next tick retries */ }
+  }, []);
+
+  useEffect(() => { loadRows(); loadVisitors(); }, [loadRows, loadVisitors]);
+  useEffect(() => {
+    poll();
+    if (paused) return undefined;
+    const t = setInterval(() => { poll(); loadRows(); loadVisitors(); }, TICK_MS);
+    return () => clearInterval(t);
+  }, [poll, loadRows, loadVisitors, paused]);
 
   return (
-    <>
-      <div className="flex flex-wrap items-end gap-4">
-        <div className="card rise flex items-center gap-4 px-5 py-4">
-          <div>
-            <div className="text-2xs font-semibold uppercase tracking-wider text-muted">Active now</div>
-            <div className="tabular text-4xl font-bold text-ink">{presence ? num(c.active) : '…'}</div>
+    <Shell title="Live"
+      subtitle={pulse ? `${count(pulse.active_15m)} active in the last 15 minutes · updated ${ago(pulse.at)}` : ' '}
+      actions={
+        <>
+          <input className="input !w-48 !py-1.5 text-sm" placeholder="Number or name"
+            value={q} onChange={(e) => setQ(e.target.value)} />
+          <button className="btn-quiet !py-1.5 text-2xs" onClick={() => setPaused(!paused)}>
+            {paused ? 'Resume' : 'Pause'}
+          </button>
+        </>
+      }>
+
+      {error && !rows ? <Failed error={error} onRetry={loadRows} /> : (
+        <>
+          {pulse && !pulse.whatsapp_on && (
+            <Banner tone="watch" className="mb-3 rise">
+              <b>The chat is switched off.</b> Conversations and the message stream below will stay empty —
+              that is WHATSAPP_ENABLED, not a fault. What is real right now is <b>On site</b>: people using
+              the website.
+            </Banner>
+          )}
+
+          <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+            <Tile label="Active in chat" value={pulse?.whatsapp_on ? count(pulse?.active_15m ?? 0) : '—'}
+              note={pulse?.whatsapp_on
+                ? 'People whose last WhatsApp message arrived in the last 15 minutes.'
+                : 'Nothing to count: WhatsApp is switched off, so nobody can be in a conversation.'} />
+            <Tile label="In the 24-hour window" value={pulse?.whatsapp_on ? count(pulse?.active_24h ?? 0) : '—'}
+              note={pulse?.whatsapp_on
+                ? 'People GaadiPe may still reply to freely. Outside this window only an approved template delivers.'
+                : 'The 24-hour window only exists once the chat is running.'} />
+            <Tile label="Checks, last 15 min" value={count(pulse?.checks_15m ?? 0)}
+              note="Vehicle lookups in the last quarter of an hour, from the website and the chat both." />
+            <Tile label="Paying right now" value={count(pulse?.paying_now ?? 0)}
+              note="Payment links opened in the last 30 minutes that have not completed yet. This is the number worth watching." />
           </div>
-          <span className={`h-3 w-3 rounded-full ${conn.state === 'live' ? 'live-dot bg-good-500' : 'bg-watch-500'}`} aria-hidden="true" />
-        </div>
-        <div className="grid flex-1 grid-cols-2 gap-2 text-sm sm:grid-cols-4">
-          {[['Online', c.online, 'text-good-700'], ['Idle', c.idle, 'text-watch-700'], ['Tab hidden', c.hidden], ['Signed in', c.signed_in],
-            ['Anonymous', c.anonymous], ['Checking a vehicle', c.checking], ['Signing in', c.signing_in], ['At payment', c.at_payment, 'text-brand']].map(([l, v, cls]) => (
-            <div key={l} className="card px-3 py-2"><div className="text-2xs text-muted">{l}</div><div className={`tabular text-lg font-bold ${cls || 'text-ink'}`}>{presence ? num(v) : '…'}</div></div>))}
-        </div>
-      </div>
 
-      <div className="mt-4 flex flex-wrap gap-1.5">
-        {FILTERS.map(([k, l]) => (
-          <button key={k} onClick={() => setFilter(k)} className={`chip border !px-3 !py-1 ${filter === k ? 'border-brand bg-brand text-white' : 'border-line bg-white'}`}>{l}</button>))}
-        <span className="ml-auto text-2xs text-muted">{conn.mode === 'poll' ? 'Updating every 5 s' : 'Live — updates as it happens'}</span>
-      </div>
+          {/* WHATSAPP FIRST (user, 2026-09-25): the chat is where customers are
+              now, so who is messaging sits directly under the counters. The
+              website's own activity follows, under its own heading. */}
+          <div className="mt-4 grid gap-4 lg:grid-cols-5">
+            <div className="card lg:col-span-3">
+              <div className="flex items-center justify-between border-b border-line px-4 py-3">
+                <h2 className="text-sm font-semibold text-ink">WhatsApp conversations</h2>
+                <span className="flex items-center gap-2">
+                  <span className="hidden text-2xs text-muted sm:inline">Tap to read and reply</span>
+                  <span className="flex overflow-hidden rounded-lg border border-line text-2xs">
+                    {[[false, 'All'], [true, `💬 Can message now${rows ? ` · ${rows.filter((r) => r.in_window).length}` : ''}`]].map(([v, l]) => (
+                      <button key={String(v)} type="button" onClick={() => setNowOnly(v)}
+                        className={`px-2.5 py-1 ${nowOnly === v ? 'bg-brand text-white' : 'text-body hover:bg-shell'}`}>{l}</button>
+                    ))}
+                  </span>
+                </span>
+              </div>
+              {!rows ? <Spinner /> : !(nowOnly ? rows.filter((r) => r.in_window) : rows).length ? (
+                <Empty>{nowOnly ? 'Nobody is inside their 24-hour window right now.' : pulse?.whatsapp_on
+                  ? 'Nobody has messaged yet.'
+                  : 'Nothing here while the chat is switched off.'}</Empty>
+              ) : (
+                <div className="divide-y divide-line">
+                  {(nowOnly ? rows.filter((r) => r.in_window) : rows).map((r) => (
+                    <button key={r.id} onClick={() => setOpenMobile(r.mobile)}
+                      className="row-hover flex w-full items-start gap-3 px-4 py-3 text-left hover:bg-shell/70">
+                      <span className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${
+                        r.in_window ? 'bg-good-500' : 'bg-line'}`} />
+                      <span className="min-w-0 flex-1">
+                        <span className="flex items-center gap-2">
+                          <span className="truncate text-sm font-semibold text-ink">
+                            {r.profile_name || r.wa_profile_name || 'Unknown'}
+                          </span>
+                          <span className="tabular text-2xs text-muted">{fmtMobile(r.mobile)}</span>
+                          {r.is_new && <Chip tone="brand">New</Chip>}
+                          {r.blocked && <Chip tone="wrong">Blocked</Chip>}
+                          {r.opted_out && <Chip tone="wrong">STOP</Chip>}
+                          {r.has_paid && <Chip tone="good">Paid</Chip>}
+                        </span>
+                        <span className="mt-0.5 block truncate text-2xs text-muted">
+                          {r.last_direction === 'out' ? '↩ ' : ''}{r.last_body || '—'}
+                        </span>
+                        <span className="mt-0.5 block text-2xs text-muted">
+                          {r.last_vehicle
+                            ? <>🚗 {r.last_vehicle}{r.vehicles > 1 ? ` +${r.vehicles - 1} more` : ''}</>
+                            : 'No vehicle checked yet'}
+                          {` · ${count(r.messages)} messages`}
+                        </span>
+                      </span>
+                      <span className="shrink-0 text-right">
+                        <span className="block text-2xs text-muted">{ago(r.last_inbound_at)}</span>
+                        {r.in_window && windowLeft(r.last_inbound_at) && (
+                          <span className="block text-[10px] font-semibold text-good-700">💬 {windowLeft(r.last_inbound_at)} left</span>
+                        )}
+                        <Hint right note={`State: ${r.state}${r.state_reason ? ` — ${r.state_reason}` : ''}`}>
+                          <span className="text-2xs text-brand-deep">{r.state}</span>
+                        </Hint>
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
 
-      <div className="mt-3">
-        {!presence ? <div className="card px-4 py-8 text-center text-sm text-muted">Connecting…</div>
-          : !rows.length ? <div className="card px-4 py-8 text-center text-sm text-muted">{c.active ? 'Nobody matches this filter.' : 'Nobody is on gaadipe.in right now.'}</div>
-            : (
-              <Table head={['Visitor', 'Status', 'Journey step', 'Doing now', 'Came from', 'Device · place', 'Here for']}>
-                {rows.map((r) => (
-                  <tr key={r.session_id} className="cursor-pointer hover:bg-shell/60" onClick={() => navigate(`/sessions/${encodeURIComponent(r.session_id)}`)}>
-                    <td className="td">
-                      <div className="text-ink">{r.user_id ? (r.name || '-') : 'Anonymous visitor'}{r.returning ? <span className="ml-1.5 chip bg-shell text-muted">returning</span> : null}</div>
-                      <div className="tabular text-2xs text-muted">{r.mobile || ''}</div>
-                      <CopyId value={sessionCode(r.session_id, r.started_at)} />
-                      {r.user_id ? <CopyId value={customerCode(r.user_id)} className="ml-2" /> : null}
+            <div className="card lg:col-span-2">
+              <div className="flex items-center justify-between border-b border-line px-4 py-3">
+                <h2 className="text-sm font-semibold text-ink">As it happens</h2>
+                {!paused && <span className="flex items-center gap-1.5 text-2xs text-muted">
+                  <span className="breathe h-1.5 w-1.5 rounded-full bg-good-500" />live</span>}
+              </div>
+              <div className="max-h-[60vh] overflow-y-auto">
+                {!stream.length ? (
+                  <Empty>{pulse?.whatsapp_on
+                    ? 'Waiting for the next message…'
+                    : 'No messages can arrive: the chat is switched off.'}</Empty>
+                ) : (
+                  <ul className="divide-y divide-line">
+                    {[...stream].reverse().map((m) => (
+                      <li key={m.id} className="fade px-4 py-2">
+                        <div className="flex items-center gap-2 text-2xs">
+                          <span className={m.direction === 'out' ? 'text-brand-deep' : 'text-ink'}>
+                            {m.direction === 'out' ? 'out' : 'in'}
+                          </span>
+                          {m.profile_name && <span className="font-semibold text-ink">{m.profile_name}</span>}
+                          <span className="tabular text-muted">{fmtMobile(m.mobile)}</span>
+                          <span className="text-muted">{ago(m.created_at)}</span>
+                          {m.error_message && <Chip tone="wrong">failed</Chip>}
+                        </div>
+                        <div className="mt-0.5 line-clamp-2 text-sm text-body">{m.body || `[${m.message_type}]`}</div>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            </div>
+          </div>
+
+          <h2 className="mt-8 text-2xs font-semibold uppercase tracking-wider text-muted">Website</h2>
+          <OnSite rows={visitors} onOpen={setOpenVisit} />
+          <CustomerActivity tick={pulse?.at} />
+        </>
+      )}
+
+      {openMobile && <Thread mobile={openMobile} lastInboundAt={(rows || []).find((r) => r.mobile === openMobile)?.last_inbound_at}
+        onClose={() => setOpenMobile(null)} />}
+      {openVisit && <Visit visit={openVisit} onClose={() => setOpenVisit(null)} />}
+    </Shell>
+  );
+}
+
+function Thread({ mobile, lastInboundAt, onClose }) {
+  const [rows, setRows] = useState(null);
+  const [error, setError] = useState(null);
+
+  const load = useCallback(() => api.thread(mobile).then((d) => setRows(d.rows)).catch(setError), [mobile]);
+  useEffect(() => { load(); }, [load]);
+
+  return (
+    <Modal wide title={fmtMobile(mobile)} subtitle="The whole conversation, oldest first" onClose={onClose}>
+      {error ? <Failed error={error} /> : !rows ? <Spinner /> : (
+        <div className="max-h-[65vh] space-y-2 overflow-y-auto pr-1">
+          {rows.map((m) => (
+            <div key={m.id} className={`flex ${m.direction === 'out' ? 'justify-end' : 'justify-start'}`}>
+              <div className={`max-w-[80%] rounded-lg px-3 py-2 text-sm ${
+                m.direction === 'out' ? 'bg-brand/8 text-ink' : 'bg-shell text-body'}`}>
+                <div className="whitespace-pre-wrap break-words">{m.body || `[${m.message_type}]`}</div>
+                <div className="mt-1 flex flex-wrap items-center gap-2 text-2xs text-muted">
+                  <span>{dateTime(m.created_at)}</span>
+                  {m.template_name && <span>template {m.template_name}</span>}
+                  {m.delivery && <span>{m.delivery.status}</span>}
+                  {m.error_message && <span className="text-wrong-700">{m.error_message}</span>}
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+      {/* Reply here while their window is open (user, 2026-10-01). */}
+      <div className="mt-3"><ReplyBox mobile={mobile} lastInboundAt={lastInboundAt} onSent={load} /></div>
+    </Modal>
+  );
+}
+
+const Tile = ({ label, value, note }) => (
+  <Hint note={note}>
+    <div className="card px-4 py-3">
+      <div className="text-2xs font-semibold uppercase tracking-wider text-muted">{label}</div>
+      <div className="tabular mt-1 text-2xl font-semibold text-ink">{value}</div>
+    </div>
+  </Hint>
+);
+
+/*
+ * ON THE SITE NOW (user, 2026-09-21): every signed-in customer active in the
+ * last 30 minutes — who they are, the page they are on, the vehicle they are
+ * looking at and the last thing they did. Signed-out visits stay listed, marked
+ * offline, until they age out. Tap a row for the whole visit, step by step.
+ */
+const ACTIONS = {
+  viewing: 'Viewing', check: 'Checked a vehicle', check_paid: 'Checked a vehicle (paid)',
+  view_vehicle: 'Opened a vehicle', view_vehicle_paid: 'Opened a vehicle (paid)',
+  buy_open: 'Opened Buy report', buy_close: 'Closed Buy report', pay_start: 'Went to payment',
+  pay_cancel: 'Cancelled payment', view_report: 'Viewed report PDF', download_report: 'Downloaded report',
+  view_invoice: 'Viewed invoice', download_invoice: 'Downloaded invoice', signed_out: 'Signed out',
+  share: 'Shared', print: 'Printed',
+};
+const actionLabel = (a) => ACTIONS[a] || a || '—';
+
+const PAGES = [
+  [/^\/app\/vehicle\//, 'Vehicle page'], [/^\/app\/check/, 'Check a vehicle'], [/^\/app\/reports/, 'My reports'],
+  [/^\/app\/invoices/, 'My invoices'], [/^\/app\/profile/, 'Profile'], [/^\/app\/?$/, 'Dashboard'],
+  [/^\/login/, 'Sign in'], [/^\/help/, 'Help'], [/^\/$/, 'Home'],
+];
+const pageLabel = (p) => {
+  if (!p) return '—';
+  const hit = PAGES.find(([re]) => re.test(p));
+  return hit ? hit[1] : p;
+};
+
+const STATE = {
+  online: ['Online', 'good'], idle: ['Idle', 'watch'], signed_out: ['Offline · signed out', 'info'],
+  expired: ['Offline · expired', 'info'],
+};
+
+function OnSite({ rows, onOpen }) {
+  const online = (rows || []).filter((r) => r.state === 'online').length;
+  return (
+    <div className="card mt-4">
+      <div className="flex items-center justify-between border-b border-line px-4 py-3">
+        <h2 className="text-sm font-semibold text-ink">On the site now</h2>
+        <span className="text-2xs text-muted">
+          {rows ? `${count(online)} online · last 30 minutes · tap for the whole visit` : ' '}
+        </span>
+      </div>
+      {!rows ? <Spinner /> : !rows.length ? <Empty>No signed-in visitors in the last 30 minutes.</Empty> : (
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead className="text-left text-2xs uppercase tracking-wider text-muted">
+              <tr>
+                {['Customer', 'Status', 'Page', 'Vehicle', 'Doing', 'Visit', 'Device'].map((h) => (
+                  <th key={h} className="px-4 py-2 font-semibold">{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-line">
+              {rows.map((r) => {
+                const [label, tone] = STATE[r.state] || [`Offline · ${r.state}`, 'info'];
+                return (
+                  <tr key={r.id} onClick={() => onOpen(r)} className="cursor-pointer align-top transition hover:bg-shell/70">
+                    <td className="px-4 py-2">
+                      <div className="font-semibold text-ink">{r.name || 'No name yet'}</div>
+                      <div className="tabular text-2xs text-muted">{fmtMobile(r.mobile)}{r.has_paid ? ' · paid before' : ''}</div>
                     </td>
-                    <td className="td"><StatusChip status={r.status} /><div className="mt-1 text-2xs text-muted">seen {ago(r.last_seen_at)}</div></td>
-                    <td className="td text-sm text-ink">{stepWords(r.step)}<div className="max-w-[12rem] truncate font-mono text-2xs text-muted">{r.page}</div></td>
-                    <td className="td text-sm">{r.action || <span className="text-muted">—</span>}
-                      <div className="text-2xs text-muted">{r.section ? `On screen: ${r.section}` : ''}{r.scroll_pct != null ? ` · scrolled ${r.scroll_pct}%` : ''}</div>
-                      {r.last_action_at ? <div className="text-2xs text-muted">{ago(r.last_action_at)}</div> : null}</td>
-                    <td className="td"><SourceChip source={r.source || 'direct'} />{r.campaign ? <div className="max-w-[9rem] truncate text-2xs text-muted">{r.campaign}</div> : null}</td>
-                    <td className="td text-2xs">{deviceOf(r.device)}<div className="text-muted">{placeOf(r.place)}</div></td>
-                    <td className="td tabular text-sm">{duration(r.started_at)}<div className="text-2xs text-muted">{num(r.pages)} pages · {num(r.interactions)} taps</div></td>
-                  </tr>))}
-              </Table>
-            )}
-      </div>
-    </>
+                    <td className="px-4 py-2">
+                      <Chip tone={tone}>{label}</Chip>
+                      <div className="mt-0.5 text-2xs text-muted">{ago(r.ended_at || r.last_used_at)}</div>
+                    </td>
+                    <td className="px-4 py-2">
+                      <div className="text-ink">{pageLabel(r.current_page)}</div>
+                      <div className="max-w-[14rem] truncate text-2xs text-muted">{r.current_page || ''}</div>
+                    </td>
+                    <td className="px-4 py-2 tabular">
+                      {r.current_reg_no ? fmtPlate(r.current_reg_no) : '—'}
+                      {r.vehicles > 1 && <div className="text-2xs text-muted">{count(r.vehicles)} this visit</div>}
+                    </td>
+                    <td className="px-4 py-2">
+                      <div className="text-ink">{r.current_action === 'click' && r.current_detail ? <>Clicked “{r.current_detail}”</> : actionLabel(r.current_action)}</div>
+                      <div className="text-2xs text-muted">{r.current_at ? ago(r.current_at) : ''}</div>
+                    </td>
+                    <td className="px-4 py-2 text-2xs text-muted">
+                      <div>since {ago(r.created_at)}</div>
+                      <div>{count(r.pages)} pages · {count(r.request_count)} requests</div>
+                    </td>
+                    <td className="px-4 py-2 text-2xs text-muted">
+                      <div>{r.device || '—'}</div>
+                      <div className="tabular">{r.ip || ''}</div>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function Visit({ visit, onClose }) {
+  const [rows, setRows] = useState(null);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    api.visitorTrail(visit.id).then((d) => setRows(d.rows)).catch(setError);
+  }, [visit.id]);
+
+  const seconds = Math.max(0, (new Date(visit.ended_at || visit.last_used_at) - new Date(visit.created_at)) / 1000);
+  return (
+    <Modal wide title={`${visit.name || 'Customer'} · ${fmtMobile(visit.mobile)}`}
+      subtitle={`Signed in ${dateTime(visit.created_at)} · ${duration(seconds)} · ${visit.device || ''}`}
+      onClose={onClose}>
+      {visit.vehicle_list?.length ? (
+        <div className="mb-3 flex flex-wrap items-center gap-1.5 text-2xs">
+          <span className="text-muted">Vehicles this visit:</span>
+          {visit.vehicle_list.map((v) => <Chip key={v}>{fmtPlate(v)}</Chip>)}
+        </div>
+      ) : null}
+      {error ? <Failed error={error} /> : !rows ? <Spinner /> : !rows.length ? <Empty>Nothing recorded for this visit yet.</Empty> : (
+        <ul className="max-h-[60vh] divide-y divide-line overflow-y-auto">
+          {rows.map((a) => (
+            <li key={a.id} className="flex items-start gap-3 py-2 text-sm">
+              <span className="w-36 shrink-0 tabular text-2xs text-muted">{dateTime(a.created_at)}</span>
+              <span className="min-w-0 flex-1">
+                <span className="text-ink">{a.kind === 'page' ? `Opened ${pageLabel(a.page)}` : a.kind === 'click' ? `Clicked “${a.detail?.label || a.detail?.href || ''}”` : actionLabel(a.action)}</span>
+                {a.reg_no && <span className="ml-2 tabular text-brand-deep">{fmtPlate(a.reg_no)}</span>}
+                {a.detail?.number && <span className="ml-2 text-2xs text-muted">{a.detail.number}</span>}
+                {a.page && <span className="block truncate text-2xs text-muted">{a.page}</span>}
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </Modal>
   );
 }

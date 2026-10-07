@@ -1,59 +1,99 @@
-/* Numbers, money and times as people in India read them. */
-
-export const num = (v) => (Number(v) || 0).toLocaleString('en-IN');
-export const rupees = (paise) => `₹${((Number(paise) || 0) / 100).toLocaleString('en-IN', { maximumFractionDigits: 2 })}`;
-export const pct = (a, b) => (b ? `${Math.round((100 * a) / b)}%` : '—');
-
-const IST = { timeZone: 'Asia/Kolkata' };
-export const time = (iso) => (iso ? new Date(iso).toLocaleTimeString('en-IN', { ...IST, hour: '2-digit', minute: '2-digit' }) : '—');
-export const dateTime = (iso) => (iso ? new Date(iso).toLocaleString('en-IN', { ...IST, day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }) : '—');
-
-export function ago(iso) {
-  if (!iso) return '—';
-  const s = Math.max(0, (Date.now() - new Date(iso).getTime()) / 1000);
-  if (s < 60) return 'just now';
-  if (s < 3600) return `${Math.floor(s / 60)} min ago`;
-  if (s < 86400) return `${Math.floor(s / 3600)} h ago`;
-  return `${Math.floor(s / 86400)} d ago`;
-}
-
-/* Where a visitor came from, in words, with a colour that means the same everywhere. */
-const SOURCES = {
-  google_ads: { label: 'Google Ads', color: '#2563eb' },
-  meta_ads: { label: 'Meta ads', color: '#db2777' },
-  google: { label: 'Google search', color: '#0891b2' },
-  organic: { label: 'Other search', color: '#0d9488' },
-  social: { label: 'Social', color: '#9333ea' },
-  whatsapp: { label: 'WhatsApp', color: '#16a34a' },
-  referral: { label: 'Other websites', color: '#ca8a04' },
-  direct: { label: 'Direct / typed', color: '#64748b' },
-  unknown: { label: 'Unknown', color: '#94a3b8' },
-};
-export const sourceOf = (s) => SOURCES[s] || { label: s || 'Unknown', color: '#94a3b8' };
-
-/*
- * READABLE IDS (spec §67–68): what the panel shows and searches for. Each maps
- * one-to-one to the id in the database, so a search finds the row.
- *   GP-C-000123              a customer (users.id)
- *   GP-S-20261007-K3F9QX     a website visit (web_sessions.session_id, its start day)
- *   GP-D-8F4K29              a browser (visitors.visitor_id)
- *   GP-T-44                  a payment (payments.id)
+/**
+ * format.js — how numbers, money, dates and plates are written.
+ *
+ * In one place because the panel is read at a glance: ₹19 written three ways
+ * across three screens is three things to reconcile in the reader's head.
+ * Money is held in paise everywhere, as it is in the database, and only ever
+ * becomes rupees here.
  */
-export const customerCode = (id) => (id ? `GP-C-${String(id).padStart(6, '0')}` : null);
-export const sessionCode = (sid, started) => {
-  if (!sid) return null;
-  const d = started ? new Date(new Date(started).getTime() + 5.5 * 3600e3).toISOString().slice(0, 10).replace(/-/g, '') : '';
-  return `GP-S-${d ? `${d}-` : ''}${String(sid).replace(/^s_/, '').slice(0, 6).toUpperCase()}`;
+
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+                'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+export const rupees = (paise, { decimals = false } = {}) => {
+  const v = Number(paise || 0) / 100;
+  return `₹${v.toLocaleString('en-IN', {
+    minimumFractionDigits: decimals ? 2 : 0,
+    maximumFractionDigits: decimals ? 2 : 0,
+  })}`;
 };
-export const deviceCode = (vid) => (vid ? `GP-D-${String(vid).replace(/^v_/, '').slice(0, 6).toUpperCase()}` : null);
-export const paymentCode = (id) => (id ? `GP-T-${id}` : null);
 
-export function duration(fromIso, to = Date.now()) {
-  if (!fromIso) return '—';
-  const s = Math.max(0, Math.round((to - new Date(fromIso).getTime()) / 1000));
-  const h = Math.floor(s / 3600); const m = Math.floor((s % 3600) / 60); const r = s % 60;
-  return h ? `${h}h ${String(m).padStart(2, '0')}m` : `${String(m).padStart(2, '0')}m ${String(r).padStart(2, '0')}s`;
-}
+export const count = (n) => Number(n || 0).toLocaleString('en-IN');
 
-export const placeOf = (p) => [p?.city, p?.region].filter(Boolean).join(', ') || p?.country || '—';
-export const deviceOf = (d) => [d?.device_type, d?.os, d?.browser].filter(Boolean).join(' · ') || '—';
+export const date = (v) => {
+  if (!v) return '—';
+  const d = new Date(v);
+  return Number.isNaN(d.getTime()) ? '—'
+    : `${String(d.getDate()).padStart(2, '0')} ${MONTHS[d.getMonth()]} ${d.getFullYear()}`;
+};
+
+export const dateTime = (v) => {
+  if (!v) return '—';
+  const d = new Date(v);
+  if (Number.isNaN(d.getTime())) return '—';
+  return `${date(v)}, ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+};
+
+/**
+ * "3 minutes ago" — how a live screen reports time.
+ * Seconds are rounded away above a minute: a row that re-renders every three
+ * seconds should not flicker between "58 seconds" and "59 seconds".
+ */
+export const ago = (v) => {
+  if (!v) return '—';
+  const ms = Date.now() - new Date(v).getTime();
+  if (Number.isNaN(ms)) return '—';
+  const s = Math.round(ms / 1000);
+  if (s < 45) return 'just now';
+  const m = Math.round(s / 60);
+  if (m < 60) return `${m} min ago`;
+  const h = Math.round(m / 60);
+  if (h < 24) return `${h} hour${h === 1 ? '' : 's'} ago`;
+  const d = Math.round(h / 24);
+  if (d < 30) return `${d} day${d === 1 ? '' : 's'} ago`;
+  return date(v);
+};
+
+/** Days until a date, negative when it has passed. */
+export const daysTo = (v) => {
+  if (!v) return null;
+  const d = new Date(v);
+  if (Number.isNaN(d.getTime())) return null;
+  return Math.round((d.setHours(0, 0, 0, 0) - new Date().setHours(0, 0, 0, 0)) / 86400000);
+};
+
+/** " ka 01 ab-1234" -> "KA01AB1234": always written without spaces. */
+export const plate = (reg) => {
+  const s = String(reg || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+  return s;
+};
+
+/** 9876543210 -> "98765 43210", which is how an Indian number is read aloud. */
+export const mobile = (m) => {
+  const s = String(m || '').replace(/\D/g, '').slice(-10);
+  return s.length === 10 ? `${s.slice(0, 5)} ${s.slice(5)}` : (m || '—');
+};
+
+export const percent = (part, whole) =>
+  (!whole ? '0%' : `${Math.round((Number(part) / Number(whole)) * 100)}%`);
+
+/** Up, down or flat against yesterday — with the words the reader wants. */
+export const change = (now, before) => {
+  const a = Number(now || 0); const b = Number(before || 0);
+  if (!b && !a) return { dir: 'flat', text: 'same as yesterday' };
+  if (!b) return { dir: 'up', text: 'first today' };
+  const pct = Math.round(((a - b) / b) * 100);
+  if (pct === 0) return { dir: 'flat', text: 'same as yesterday' };
+  return { dir: pct > 0 ? 'up' : 'down', text: `${pct > 0 ? '+' : ''}${pct}% vs yesterday` };
+};
+
+/** 44 -> "44s", 224 -> "3m 44s", 3900 -> "1h 5m", 200000 -> "2d 7h". */
+export const duration = (seconds) => {
+  const s = Math.max(0, Math.round(Number(seconds) || 0));
+  if (s < 60) return `${s}s`;
+  const m = Math.floor(s / 60);
+  if (m < 60) return `${m}m ${s % 60}s`;
+  const h = Math.floor(m / 60);
+  if (h < 24) return `${h}h ${m % 60}m`;
+  return `${Math.floor(h / 24)}d ${h % 24}h`;
+};

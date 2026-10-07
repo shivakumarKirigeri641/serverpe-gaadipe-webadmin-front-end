@@ -1,119 +1,234 @@
-import { useState } from 'react';
-import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
+import { useCallback, useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { chartAnim } from '../lib/motion.jsx';
 import { api } from '../lib/api';
-import { useLoad } from '../lib/useLoad';
-import { useRange } from '../components/Layout.jsx';
-import { Section, SourceChip, Stat, State, Table } from '../components/ui.jsx';
-import { ago, dateTime, num, rupees } from '../lib/format';
+import Shell from '../components/Shell.jsx';
+import { usePeriod } from '../components/Period.jsx';
+import { Hint, Failed, SkeletonCards, Empty, Table, Chip, Modal, Pager, PAGE_SIZE, saveBlob } from '../components/ui.jsx';
+import { count, dateTime, mobile as fmtMobile } from '../lib/format';
 
 /**
- * PAYMENTS (spec §18) and the PAYMENT RECOVERY QUEUE (§123) — the main admin's
- * payment figures, for the period picked at the top. Nobody is contacted from
- * here: the recovery queue is for looking, not for messaging.
+ * PAYMENTS (user, 2026-09-25, command center phase 5).
+ *
+ * Every payment, and what each one left after GST, the gateway and the records
+ * calls behind it; success and failure rates; revenue over time and by where
+ * customers came from. The split is the server's (the same rates as Revenue &
+ * GST); this screen only shows it. Tap a payment for its whole story.
  */
-const RANGE_PARAM = { today: 'today', '7d': '7d', '30d': '30d' };
-const STATUS_CLS = { paid: 'bg-good-50 text-good-700', failed: 'bg-wrong-50 text-wrong-700', refunded: 'bg-watch-50 text-watch-700' };
+
+const AXIS = { fontSize: 11, fill: '#6b8380' };
+const TOOLTIP = { fontSize: 12, borderRadius: 8, border: '1px solid #e3ecea' };
+const inr = (p) => (p == null ? '—' : `₹${(Number(p) / 100).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`);
+const STATUSES = [['', 'Every status'], ['paid', 'Success'], ['pending', 'Pending'], ['not_completed', 'Not completed'], ['failed', 'Failed'], ['refunded', 'Refunded']];
+const TONE = { Success: 'good', Pending: 'watch', 'Not completed': 'info', Failed: 'wrong', Refunded: 'watch' };
 
 export default function Payments() {
-  const [range] = useRange();
-  const [tab, setTab] = useState('all');
+  const navigate = useNavigate();
+  const [params, controls, key] = usePeriod('payments', { defaultRange: '30d', withCompare: false });
+  const [grain, setGrain] = useState('day');
+  const [sum, setSum] = useState(null);
+  const [rows, setRows] = useState(null);
+  const [error, setError] = useState(null);
   const [status, setStatus] = useState('');
-  const sum = useLoad((quiet) => api.paymentsSummary({ range: RANGE_PARAM[range] }, quiet), [range]);
-  const list = useLoad((quiet) => api.payments({ range: RANGE_PARAM[range], status, limit: 100 }, quiet), [range, status]);
-  // The recovery queue looks back at most 7 days (payflow WINDOWS).
-  const rec = useLoad((quiet) => api.abandoned({ window: range === 'today' ? 'today' : '7d' }, quiet), [range]);
-  const t = sum.data?.totals;
+  const [q, setQ] = useState('');
+  const [page, setPage] = useState(1);
+  const [openId, setOpenId] = useState(null);
+
+  const loadSum = useCallback(async () => {
+    try { setSum(await api.paymentsSummary({ ...params, grain })); setError(null); } catch (e) { setError(e); }
+  }, [key, grain]); // eslint-disable-line react-hooks/exhaustive-deps
+  const loadRows = useCallback(async () => {
+    try { setRows(await api.payments({ ...params, status: status || undefined, q: q || undefined, limit: PAGE_SIZE, offset: (page - 1) * PAGE_SIZE })); }
+    catch (e) { setError(e); }
+  }, [key, status, q, page]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { loadSum(); }, [loadSum]);
+  useEffect(() => { setPage(1); }, [key, status, q]);
+  useEffect(() => { const t = setTimeout(loadRows, q ? 300 : 0); return () => clearTimeout(t); }, [loadRows, q]);
+
+  const t = sum?.totals;
+  const exportCsv = async () => {
+    try {
+      const day = (d) => new Date(new Date(d).getTime() + 330 * 60000).toISOString().slice(0, 10);
+      const { blob, filename } = await api.exportCsv('payments', { from: day(sum.range.from), to: day(new Date(sum.range.to) - 1) });
+      saveBlob(blob, filename);
+    } catch (e) { alert(e.message || 'Export failed.'); }
+  };
 
   return (
-    <>
-      <h1 className="text-lg font-semibold">Payments</h1>
-      <State loading={sum.loading} error={sum.error} onRetry={sum.reload}>
-        {t ? (
-          <>
-            <div className="mt-3 grid grid-cols-2 gap-3 md:grid-cols-4">
-              <Stat label="Paid" value={num(t.paid)} sub={`${num(t.started)} started · ${t.success_pct ?? '—'}% success`} tone={t.paid ? 'good' : undefined} />
-              <Stat label="Gross" value={rupees(t.gross_paise)} sub={`${num(t.payers)} payer${t.payers === 1 ? '' : 's'} · ${rupees(t.arpu_paise)} each`} />
-              <Stat label="Net (after GST, fees, costs)" value={rupees(t.net_paise)} sub={`GST ${rupees(t.gst_paise)} · gateway ${rupees(t.gateway_paise)}`} />
-              <Stat label="Not completed / failed" value={`${num(t.not_completed)} / ${num(t.failed)}`} sub={`${num(t.refunded)} refunded`} tone={t.failed ? 'wrong' : undefined} />
-            </div>
-            {sum.data.series?.length ? (
-              <Section title={sum.data.grain === 'hour' ? 'Payments by hour' : 'Payments by day'}>
-                <div className="card px-2 py-3"><div className="h-52"><ResponsiveContainer>
-                  <BarChart data={sum.data.series} margin={{ top: 8, right: 12, left: -16, bottom: 0 }}>
-                    <CartesianGrid stroke="#e3ecea" vertical={false} />
-                    <XAxis dataKey="label" tick={{ fontSize: 11, fill: '#6b8380' }} />
-                    <YAxis allowDecimals={false} tick={{ fontSize: 11, fill: '#6b8380' }} />
-                    <Tooltip contentStyle={{ fontSize: 12, borderRadius: 8 }} formatter={(v, n) => (n === 'Gross' ? rupees(v) : v)} />
-                    <Bar dataKey="payments" name="Payments" fill="#12a150" radius={[3, 3, 0, 0]} />
-                  </BarChart>
-                </ResponsiveContainer></div></div>
-              </Section>
-            ) : null}
-            {sum.data.by_source?.length ? (
-              <Section title="Revenue by source">
-                <div className="card divide-y divide-line">
-                  {sum.data.by_source.map((s) => (
-                    <div key={s.source} className="flex items-center gap-3 px-4 py-2 text-sm">
-                      <SourceChip source={s.source} /><span className="ml-auto tabular">{num(s.payments)} paid</span>
-                      <span className="tabular w-24 text-right font-semibold">{rupees(s.gross_paise)}</span>
-                    </div>))}
+    <Shell title="Payments" subtitle={sum ? sum.range.label : ' '}
+      actions={<>{controls}<button className="btn-quiet !py-1.5 text-2xs" disabled={!sum} onClick={exportCsv}>Export CSV</button></>}>
+      {error && !sum ? <Failed error={error} onRetry={loadSum} /> : !sum ? <SkeletonCards n={8} /> : (
+        <>
+          <div className="grid grid-cols-2 gap-3 md:grid-cols-4 xl:grid-cols-8">
+            <Box label="Gross" v={inr(t.gross_paise)} sub={`${count(t.paid)} paid`} note="What customers paid, GST included." />
+            <Box label="Net contribution" v={inr(t.net_paise)} note="After GST, the gateway fee and its GST, WhatsApp messaging and the records API — the same as the Command Center." />
+            <Box label="Success rate" v={t.success_pct == null ? 'No data' : `${t.success_pct}%`} sub={`${count(t.started_paid)} of ${count(t.started)} started`} note="Of the payments started in the period, how many were paid." />
+            <Box label="Failure rate" v={t.failure_pct == null ? 'No data' : `${t.failure_pct}%`} sub={`${count(t.failed)} with a failed attempt`} bad={t.failed > 0} note="Payments where Razorpay reported at least one failed attempt (payment.failed)." />
+            <Box label="Not completed" v={count(t.not_completed)} note="Started, not paid, and older than 30 minutes." />
+            <Box label="Refunded" v={count(t.refunded)} sub={inr(t.refunded_paise)} note="Refunds processed in the period." />
+            <Box label="Per paying customer" v={inr(t.arpu_paise)} sub={`${count(t.payers)} customer${t.payers === 1 ? '' : 's'}`} note="Gross divided by the customers who paid." />
+            <Box label="GST · gateway · API" v={inr(t.gst_paise)} sub={`${inr(t.gateway_paise)} gateway · ${inr(t.api_cost_paise)} API`} note="GST inside the price, the gateway fee with its GST, and the records API cost." />
+          </div>
+
+          <div className="mt-4 grid gap-4 xl:grid-cols-3">
+            <div className="card p-4 xl:col-span-2">
+              <div className="flex items-center justify-between">
+                <h2 className="text-sm font-semibold text-ink">Revenue</h2>
+                <div className="flex gap-1">
+                  {['day', 'week', 'month'].map((g) => (
+                    <button key={g} onClick={() => setGrain(g)}
+                      className={`rounded-full border px-2.5 py-0.5 text-2xs ${grain === g ? 'border-brand bg-brand text-white' : 'border-line text-body'}`}>
+                      By {g}
+                    </button>
+                  ))}
                 </div>
-              </Section>
-            ) : null}
+              </div>
+              <div className="mt-3 h-52">
+                {!sum.series.length ? <Empty>No payments in this period.</Empty> : (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={sum.series.map((s) => ({ ...s, rupees: s.gross_paise / 100 }))}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#eef3f2" vertical={false} />
+                      <XAxis dataKey="label" tick={AXIS} />
+                      <YAxis tick={AXIS} />
+                      <Tooltip contentStyle={TOOLTIP} formatter={(v, n) => (n === 'Revenue' ? `₹${v}` : v)} />
+                      <Bar {...chartAnim()} dataKey="rupees" name="Revenue" fill="#0d9488" radius={[3, 3, 0, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                )}
+              </div>
+            </div>
+            <div className="card p-4">
+              <Hint note="Where each paying customer first came from: a website visit's source, a WhatsApp ad, or straight to the number.">
+                <h2 className="text-sm font-semibold text-ink">Revenue by source</h2>
+              </Hint>
+              {!sum.by_source.length ? <p className="mt-2 text-2xs text-muted">No data</p> : (
+                <ul className="mt-2 space-y-1.5">
+                  {sum.by_source.map((s) => (
+                    <li key={s.source} className="flex justify-between text-sm">
+                      <span className="text-body">{String(s.source).replace(/_/g, ' ')}</span>
+                      <span className="tabular text-ink">{inr(s.gross_paise)} <span className="text-2xs text-muted">· {count(s.payments)}</span></span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+              <h3 className="mt-4 text-2xs font-semibold uppercase tracking-wider text-muted">Method</h3>
+              <ul className="mt-1 space-y-1">
+                {sum.by_method.map((m) => (
+                  <li key={m.method} className="flex justify-between text-2xs">
+                    <Hint note={m.method === 'not recorded' ? 'Payments before the method was recorded (25 Sep 2026).' : null}>
+                      <span className="text-body">{m.method}</span>
+                    </Hint>
+                    <span className="tabular text-ink">{count(m.payments)}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
+        </>
+      )}
+
+      <div className="card mt-4">
+        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-line px-4 py-3">
+          <h2 className="text-sm font-semibold text-ink">Transactions {rows ? <span className="font-normal text-muted">· {count(rows.total)}</span> : null}</h2>
+          <div className="flex gap-2">
+            <input className="input !w-56 !py-1.5 text-sm" placeholder="Mobile, plate, order or payment id" value={q} onChange={(e) => setQ(e.target.value)} />
+            <select className="input !w-auto !py-1.5 text-sm" value={status} onChange={(e) => setStatus(e.target.value)}>
+              {STATUSES.map(([k, l]) => <option key={k} value={k}>{l}</option>)}
+            </select>
+          </div>
+        </div>
+        {!rows ? <div className="p-4 text-sm text-muted">Loading…</div> : !rows.rows.length ? <Empty>No payments match.</Empty> : (
+          <>
+            <Table head={<tr>{['When', 'Customer', 'Vehicle', 'Amount', 'GST', 'Gateway', 'API', 'Net', 'Status', 'Source'].map((h) => <th key={h} className="th">{h}</th>)}</tr>}>
+              {rows.rows.map((p) => (
+                <tr key={p.id} className="cursor-pointer hover:bg-shell/70" onClick={() => setOpenId(p.id)}>
+                  <td className="td tabular text-2xs text-muted">{dateTime(p.paid_at || p.created_at)}</td>
+                  <td className="td text-2xs">{p.person_name && <div className="font-semibold text-ink">{p.person_name}</div>}<div className="text-muted">{p.mobile ? fmtMobile(p.mobile) : '—'}</div></td>
+                  <td className="td tabular text-2xs">{p.reg_no || '—'}</td>
+                  <td className="td tabular text-sm">{inr(p.amount_paise)}</td>
+                  <td className="td tabular text-2xs text-muted">{p.status === 'paid' ? inr(p.gst_paise) : '—'}</td>
+                  <td className="td tabular text-2xs text-muted">{p.status === 'paid' ? inr(p.gateway_paise) : '—'}</td>
+                  <td className="td tabular text-2xs text-muted">{inr(p.api_cost_paise)}</td>
+                  <td className="td tabular text-sm font-semibold text-ink">{p.status === 'paid' ? inr(p.net_paise) : '—'}</td>
+                  <td className="td"><Chip tone={TONE[p.status_label]}>{p.status_label}</Chip></td>
+                  <td className="td text-2xs">{String(p.source || '—').replace(/_/g, ' ')}</td>
+                </tr>
+              ))}
+            </Table>
+            <Pager page={page} total={rows.total} onPage={setPage} />
           </>
-        ) : null}
-      </State>
-
-      <div className="mt-6 flex flex-wrap items-center gap-2">
-        {[['all', 'Transactions'], ['recovery', `Payment recovery${rec.data?.total ? ` (${rec.data.total})` : ''}`]].map(([k, l]) => (
-          <button key={k} onClick={() => setTab(k)} className={`chip border !px-3 !py-1 ${tab === k ? 'border-brand bg-brand text-white' : 'border-line bg-white'}`}>{l}</button>
-        ))}
-        {tab === 'all' ? (
-          <select className="input ml-auto !w-auto !py-1 text-2xs" value={status} onChange={(e) => setStatus(e.target.value)}>
-            <option value="">Every status</option><option value="paid">Paid</option><option value="created">Started, not paid</option><option value="failed">Failed</option><option value="refunded">Refunded</option>
-          </select>) : null}
-      </div>
-
-      <div className="mt-3">
-        {tab === 'all' ? (
-          <State loading={list.loading} error={list.error} empty={list.data && !list.data.rows.length ? 'No payments in this period.' : null}>
-            {list.data?.rows.length ? (
-              <Table head={['When', 'Customer', 'Vehicle', 'Amount', 'Status', 'Source', 'ID']}>
-                {list.data.rows.map((p) => (
-                  <tr key={p.id}>
-                    <td className="td whitespace-nowrap">{dateTime(p.paid_at || p.created_at)}</td>
-                    <td className="td"><div className="text-ink">{p.person_name || '-'}</div><div className="tabular text-2xs text-muted">{p.mobile}</div></td>
-                    <td className="td plate">{p.reg_no || '—'}</td>
-                    <td className="td tabular">{rupees(p.amount_paise)}</td>
-                    <td className="td"><span className={`chip ${STATUS_CLS[p.status] || 'bg-shell text-muted'}`}>{p.status_label || p.status}</span>{p.had_failure ? <div className="text-2xs text-wrong-700">had a failed try</div> : null}</td>
-                    <td className="td"><SourceChip source={p.source} /></td>
-                    <td className="td font-mono text-2xs text-muted">GP-T-{p.id}<div>{p.razorpay_payment_id || p.order_id}</div></td>
-                  </tr>))}
-              </Table>
-            ) : null}
-          </State>
-        ) : (
-          <State loading={rec.loading} error={rec.error} empty={rec.data && !rec.data.rows.length ? 'Nobody left a payment unfinished in this period.' : null}>
-            {rec.data?.rows.length ? (
-              <>
-                <p className="mb-2 text-2xs text-muted">{rec.data.note} Nobody is contacted automatically.</p>
-                <Table head={['Started', 'Customer', 'Vehicle', 'Amount', 'Why', 'Source', 'Since']}>
-                  {rec.data.rows.map((p) => (
-                    <tr key={p.id}>
-                      <td className="td whitespace-nowrap">{dateTime(p.started_at)}</td>
-                      <td className="td tabular">{p.mobile}</td>
-                      <td className="td plate">{p.reg_no || '—'}</td>
-                      <td className="td tabular">{rupees(p.amount_paise)}</td>
-                      <td className="td"><div className="text-ink">{p.reason}</div>{p.reason_detail ? <div className="text-2xs text-muted">{p.reason_detail}</div> : null}</td>
-                      <td className="td"><SourceChip source={p.source} /><div className="text-2xs text-muted">{p.channel}</div></td>
-                      <td className="td text-2xs text-muted">{ago(p.last_activity)}</td>
-                    </tr>))}
-                </Table>
-              </>
-            ) : null}
-          </State>
         )}
       </div>
-    </>
+
+      {openId && <PaymentDrawer id={openId} onClose={() => setOpenId(null)} onJourney={(m) => navigate(`/journey?mobile=${m}`)} />}
+    </Shell>
+  );
+}
+
+function Box({ label, v, sub, note, bad = false }) {
+  return (
+    <Hint note={note} className="block">
+      <div className="card p-3">
+        <div className="text-2xs uppercase tracking-wider text-muted">{label}</div>
+        <div className={`tabular mt-1 text-lg font-bold ${bad ? 'text-wrong-700' : 'text-ink'}`}>{v}</div>
+        {sub && <div className="text-2xs text-muted">{sub}</div>}
+      </div>
+    </Hint>
+  );
+}
+
+/* One payment's whole story: the split, the ids, what happened, in order. */
+function PaymentDrawer({ id, onClose, onJourney }) {
+  const [p, setP] = useState(null);
+  const [error, setError] = useState(null);
+  useEffect(() => { api.payment(id).then(setP).catch(setError); }, [id]);
+  const row = (k, v) => (v == null || v === '' ? null : (
+    <div className="flex justify-between gap-3 py-1 text-sm"><span className="text-muted">{k}</span><span className="text-right text-ink">{v}</span></div>
+  ));
+  return (
+    <Modal wide title={`Payment ${id}`} subtitle={p ? `${p.status_label} · ${dateTime(p.paid_at || p.created_at)}` : 'Loading…'} onClose={onClose}>
+      {error ? <Failed error={error} /> : !p ? <div className="p-4 text-sm text-muted">Loading…</div> : (
+        <div className="grid gap-4 p-1 md:grid-cols-2">
+          <div>
+            <h3 className="text-2xs font-semibold uppercase tracking-wider text-muted">The money</h3>
+            {row('Amount', inr(p.amount_paise))}
+            {p.status === 'paid' && row('− GST', inr(p.gst_paise))}
+            {p.status === 'paid' && row('− Gateway fee + GST', inr(p.gateway_paise))}
+            {row('− Records API (lookups for this vehicle, day before)', inr(p.api_cost_paise))}
+            {p.status === 'paid' && <div className="mt-1 flex justify-between border-t border-line pt-1 text-sm font-semibold"><span>Net contribution</span><span>{inr(p.net_paise)}</span></div>}
+            <h3 className="mt-4 text-2xs font-semibold uppercase tracking-wider text-muted">Who and what</h3>
+            {row('Customer', p.person_name)}
+            {row('Mobile', p.mobile ? fmtMobile(p.mobile) : null)}
+            {row('Vehicle', p.reg_no)}
+            {row('Plan', p.plan_code)}
+            {row('Came from', p.source && String(p.source).replace(/_/g, ' '))}
+            {row('Method', p.method || 'Not recorded')}
+            {row('Report', p.report ? `${p.report.report_number} · valid until ${dateTime(p.report.valid_until)}` : null)}
+            {row('Invoice', p.invoice?.invoice_number)}
+            {p.mobile && <button className="btn-quiet mt-3 !py-1.5 text-2xs" onClick={() => onJourney(p.mobile)}>Open this customer's journey →</button>}
+          </div>
+          <div>
+            <h3 className="text-2xs font-semibold uppercase tracking-wider text-muted">Razorpay</h3>
+            {row('Order', p.order_id)}
+            {row('Payment id', p.razorpay_payment_id)}
+            {row('Refund id', p.refund_id)}
+            <h3 className="mt-4 text-2xs font-semibold uppercase tracking-wider text-muted">What happened</h3>
+            <ul className="mt-1 space-y-1 text-2xs">
+              {[...p.events.map((e) => ({ at: e.occurred_at, what: e.name.replace(/_/g, ' '), bad: e.status === 'failed' })),
+                ...p.webhooks.map((w) => ({ at: w.created_at, what: `Razorpay webhook: ${w.event}${w.status ? ` (${w.status})` : ''}`, bad: /failed/.test(w.event) }))]
+                .sort((a, b) => new Date(a.at) - new Date(b.at))
+                .map((x, i) => (
+                  <li key={i} className="flex gap-2">
+                    <span className="tabular shrink-0 text-muted">{dateTime(x.at)}</span>
+                    <span className={x.bad ? 'text-wrong-700' : 'text-ink'}>{x.what}</span>
+                  </li>
+                ))}
+              {!p.events.length && !p.webhooks.length && <li className="text-muted">No events recorded for this payment.</li>}
+            </ul>
+          </div>
+        </div>
+      )}
+    </Modal>
   );
 }

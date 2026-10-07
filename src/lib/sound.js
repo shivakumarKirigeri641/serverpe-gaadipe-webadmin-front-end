@@ -1,19 +1,22 @@
 /**
- * ALERT SOUNDS (spec §77–78), drawn by the browser (Web Audio) — no files.
+ * POP-UP SOUNDS (user, 2026-09-30): a chime with each pop-up, drawn by the
+ * browser (Web Audio) — no audio files to host or load.
  *
- *   critical  three firm falling notes
- *   warning   two short notes
- *   success   two rising bells
- *   info      one soft drop
+ *   payment    "ta-daaaa" in soft bells — one short, then three ringing together
+ *   milestone  a bell fanfare — every hundred customers
+ *   recovered  two soft rising notes — "all good again"
+ *   alert      two falling notes; a critical one three, a little firmer
+ *   hi / check one quiet drop, so a busy hour does not become noise
  *
- * Never a stream of noise: a COOLDOWN per severity (one sound per window,
- * however many alerts), and several alerts arriving together play once — the
- * most serious of them. Browsers allow sound only after the admin has clicked
- * or typed on the page once; until then it stays silent instead of failing.
+ * Several pop-ups arriving together play once — the most important of them.
+ * Browsers only allow sound after the admin has clicked or typed on the page
+ * once; until then it stays silent rather than failing. On/off per browser
+ * (Display & motion).
  */
 
-export const SEVERITIES = ['critical', 'warning', 'success', 'info'];
-export const DEFAULT_SOUND = { master: true, critical: true, warning: true, success: true, info: false, volume: 70, cooldown: 30 };
+const OFF_KEY = 'gp.sound.off';
+export const soundOn = () => { try { return localStorage.getItem(OFF_KEY) !== '1'; } catch { return true; } };
+export function setSound(on) { try { localStorage.setItem(OFF_KEY, on ? '0' : '1'); } catch { /* private window */ } }
 
 let ctx = null;
 function audio() {
@@ -26,41 +29,67 @@ function audio() {
   return ctx;
 }
 
-function tone(a, { f, start, dur, gain, type = 'sine' }) {
-  const o = a.createOscillator(); const g = a.createGain();
-  o.type = type; o.frequency.setValueAtTime(f, a.currentTime + start);
-  g.gain.setValueAtTime(0.0001, a.currentTime + start);
-  g.gain.exponentialRampToValueAtTime(gain, a.currentTime + start + 0.02);
-  g.gain.exponentialRampToValueAtTime(0.0001, a.currentTime + start + dur);
-  o.connect(g).connect(a.destination); o.start(a.currentTime + start); o.stop(a.currentTime + start + dur + 0.05);
+// The first click or key press on the page unlocks sound for the session.
+if (typeof window !== 'undefined') {
+  const unlock = () => { audio(); window.removeEventListener('pointerdown', unlock); window.removeEventListener('keydown', unlock); };
+  window.addEventListener('pointerdown', unlock);
+  window.addEventListener('keydown', unlock);
 }
 
-const SHAPES = {
-  critical: [[880, 0, 0.22], [660, 0.24, 0.22], [440, 0.48, 0.32]],
-  warning: [[740, 0, 0.16], [587, 0.2, 0.2]],
-  success: [[784, 0, 0.25], [1175, 0.18, 0.45]],
-  info: [[660, 0, 0.3]],
+/** One bell-like note: a sine with a quieter octave above, fading out. */
+function bell(ac, out, freq, at, { dur = 1.1, gain = 0.22, type = 'sine' } = {}) {
+  [[1, 1], [2, 0.28], [3, 0.08]].forEach(([mult, level]) => {
+    const o = ac.createOscillator(); const g = ac.createGain();
+    o.type = type; o.frequency.value = freq * mult;
+    g.gain.setValueAtTime(0.0001, at);
+    g.gain.exponentialRampToValueAtTime(gain * level, at + 0.012);
+    g.gain.exponentialRampToValueAtTime(0.0001, at + dur / mult);
+    o.connect(g).connect(out);
+    o.start(at); o.stop(at + dur + 0.05);
+  });
+}
+
+const N = { A4: 440, E5: 659.25, G5: 783.99, A5: 880, C6: 1046.5, D6: 1174.66, E6: 1318.51, G6: 1567.98, B6: 1975.53, C7: 2093 };
+
+const TUNES = {
+  // "Ta-daaaa" in the recovered bells (user, 2026-09-30): one short bell,
+  // then three ringing together, a little fuller than recovered's two.
+  payment: (ac, out, t) => {
+    bell(ac, out, N.G5, t, { dur: 0.5, gain: 0.16 });
+    [N.C6, N.E6, N.G6].forEach((f, i) => bell(ac, out, f, t + 0.16 + i * 0.012, { dur: 2, gain: 0.13 }));
+  },
+  // A customer milestone (user, 2026-09-30): a rising bell run into a full
+  // chord that rings, then a second, higher chord — a fanfare, not a ping.
+  milestone: (ac, out, t) => {
+    [N.G5, N.C6, N.E6, N.G6].forEach((f, i) => bell(ac, out, f, t + i * 0.11, { dur: 0.7, gain: 0.14 }));
+    [N.C6, N.E6, N.G6, N.C7].forEach((f, i) => bell(ac, out, f, t + 0.5 + i * 0.015, { dur: 2.4, gain: 0.12 }));
+    [N.E6, N.G6, N.C7].forEach((f, i) => bell(ac, out, f * 2, t + 1.2 + i * 0.05, { dur: 1.6, gain: 0.05 }));
+  },
+  // 4 or 5 stars of feedback (user, 2026-09-30): a quick sparkle, rising.
+  star: (ac, out, t) => [N.E6, N.G6, N.B6, N.E6 * 2].forEach((f, i) => bell(ac, out, f, t + i * 0.07, { dur: 0.9, gain: 0.11 })),
+  recovered: (ac, out, t) => { bell(ac, out, N.G5, t, { dur: 0.9, gain: 0.16 }); bell(ac, out, N.D6, t + 0.13, { dur: 1.1, gain: 0.16 }); },
+  critical: (ac, out, t) => [N.A5, N.E5, N.A4].forEach((f, i) => bell(ac, out, f, t + i * 0.16, { dur: 0.8, gain: 0.2, type: 'triangle' })),
+  alert: (ac, out, t) => { bell(ac, out, N.A5, t, { dur: 0.7, gain: 0.15, type: 'triangle' }); bell(ac, out, N.E5, t + 0.16, { dur: 0.9, gain: 0.15, type: 'triangle' }); },
+  hi: (ac, out, t) => bell(ac, out, N.E6, t, { dur: 0.5, gain: 0.07 }),
+  check: (ac, out, t) => bell(ac, out, N.B6, t, { dur: 0.45, gain: 0.06 }),
 };
+const RANK = ['milestone', 'payment', 'star', 'critical', 'alert', 'recovered', 'hi', 'check'];
 
-const last = {};
-/** Play one severity's sound if settings allow and its cooldown has passed. `force` is the Test button. */
-export function play(severity, settings = DEFAULT_SOUND, { force = false } = {}) {
-  const s = { ...DEFAULT_SOUND, ...settings };
-  if (!force && (!s.master || !s[severity])) return false;
-  const now = Date.now();
-  if (!force && last[severity] && now - last[severity] < s.cooldown * 1000) return false;
-  const a = audio();
-  if (!a) return false;
-  last[severity] = now;
-  const vol = Math.max(0, Math.min(1, (Number(s.volume) || 0) / 100)) * 0.35;
-  for (const [f, start, dur] of SHAPES[severity] || SHAPES.info) {
-    tone(a, { f, start, dur, gain: Math.max(0.0002, vol), type: severity === 'critical' ? 'triangle' : 'sine' });
-  }
-  return true;
+function play(name) {
+  const ac = audio();
+  if (!ac || ac.state !== 'running' || !TUNES[name]) return;
+  const out = ac.createGain(); out.gain.value = 0.9; out.connect(ac.destination);
+  TUNES[name](ac, out, ac.currentTime + 0.02);
 }
 
-/** Several arriving together: the most serious one plays. */
-export function playMost(severities, settings) {
-  for (const sev of SEVERITIES) if (severities.includes(sev)) return play(sev, settings);
-  return false;
+let pending = null; let timer = null;
+/** The sound for a pop-up; ones that arrive together play once, the most important. */
+export function chime(item, { force = false } = {}) {
+  if (!force && !soundOn()) return;
+  const name = item.kind === 'alert' ? (item.severity === 'critical' ? 'critical' : 'alert') : item.kind;
+  if (!TUNES[name]) return;
+  if (force) { play(name); return; }
+  if (!pending || RANK.indexOf(name) < RANK.indexOf(pending)) pending = name;
+  clearTimeout(timer);
+  timer = setTimeout(() => { play(pending); pending = null; }, 150);
 }

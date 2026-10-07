@@ -1,112 +1,417 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { api } from '../lib/api';
-import { useLoad } from '../lib/useLoad';
-import { usePrefs } from '../lib/prefs.jsx';
-import { useSession } from '../lib/session.jsx';
-import { play, SEVERITIES } from '../lib/sound';
-import { Section, State, Table } from '../components/ui.jsx';
-import { ago, dateTime } from '../lib/format';
+import { rupees, dateTime } from '../lib/format';
+import Shell from '../components/Shell.jsx';
+import { Banner, Field, Hint, Spinner, Failed, Table } from '../components/ui.jsx';
+import CleanDatabase from '../components/CleanDatabase.jsx';
+import BackupDatabase from '../components/BackupDatabase.jsx';
+import { useSession, allowed } from '../lib/session';
 
 /**
- * SETTINGS (spec §78–79, §94–95): alert sounds (each severity, volume,
- * cooldown, test), desktop notifications, auto-lock, this admin's sessions, and
- * who else is in the panel. Saved per admin on the server.
+ * Prices, and everything else that changes without a deploy.
+ *
+ * TWO KINDS OF THING LIVE HERE, and they are kept apart on the screen because
+ * they carry different risk: a PLAN's price is what a customer is charged, and
+ * a SETTING is how the product behaves. Both are audited with the value before
+ * and after.
+ *
+ * The settings that matter are grouped and explained; the rest are left in a
+ * plain list rather than hidden, because a setting nobody can find is a setting
+ * that gets changed in the database at midnight.
  */
-const LOCKS = [[5, '5 minutes'], [10, '10 minutes'], [15, '15 minutes'], [30, '30 minutes'], [0, 'Never (owner only)']];
+const GROUPS = [
+  {
+    title: 'What a check costs us',
+    keys: {
+      free_checks_per_day: 'Free checks a day for someone with no subscription.',
+      free_checks_per_day_trial: 'Free checks a day while a trial is running.',
+      checks_burst_per_minute: 'Checks allowed in any one minute, per person.',
+      checks_repeat_window_minutes: 'Re-checking the same vehicle inside this many minutes is free and uncounted.',
+      checks_enforce: 'Whether the limits above actually refuse anyone (true/false). Counting happens either way.',
+    },
+  },
+  {
+    // (user, 2026-10-05) The paid backup used when ULIP's VAHAN fails.
+    title: 'Vehicle data backups — eChallan.app (free) and IDSPay (paid)',
+    keys: {
+      rc_backup_paid_only: 'true = the backup is used ONLY for paying customers: a free check waits for ULIP (waiting list) and is offered the full report at once, whose lookup uses the backup. false = free checks use the backup too (₹3 each — at ~7 payers in 100 this loses money). Recommended: true.',
+      echallan_app_enabled: 'eChallan.app — the FREE second source, asked after ULIP and before IDSPay (RC and challans). true / false.',
+      echallan_app_timeout_ms: 'How long to wait for eChallan.app before moving on to IDSPay, in milliseconds (8000 = 8 s).',
+      echallan_app_credits: 'Free eChallan.app credits left, as their last answer said (updated by itself).',
+      echallan_app_low_credits: 'Ping me when eChallan.app credits fall to this many.',
+      rc_backup_balance_paise: 'Your IDSPay balance, in paise (e.g. 50000 = ₹500). Enter it after each recharge; every call takes off ₹3 + GST. Blank = not tracked.',
+      rc_backup_low_balance_paise: 'When the balance reaches this (5000 = ₹50), the backup goes back to paying customers only (rc_backup_paid_only = true) and you get a ping.',
+      rc_backup_store_full: 'true = IDSPay’s answer is kept whole in your cache (owner name, chassis, engine, address); customers always see it masked. false = masked before saving.',
+      rc_backup_daily_limit: 'Most backup calls in a day (IST). Past it, ULIP failures stand. Each call costs the price below.',
+      rc_backup_cost_paise: 'What one backup call costs, in paise, before GST (300 = ₹3). Used for the Profit & loss.',
+      pnl_ads_daily_paise: 'Profit & loss: GaadiPe ad spend counted for a day not entered on the Ad spend page, in paise (15000 = ₹150).',
+      pnl_fixed_monthly_paise: 'Profit & loss: fixed costs a month — server, domain, email — in paise (e.g. 150000 = ₹1,500).',
+    },
+  },
+  {
+    title: 'Reports and alerts',
+    keys: {
+      free_view_detail: 'How much a FREE check gives away: labels (names the lapsed documents and challan count), count (only how many things need attention — recommended), none (vehicle identity only). Applies to the vehicle page, My vehicles and the every-few-days email.',
+      report_valid_days: 'How many days a paid report can be downloaded again.',
+      document_number_start: 'Where each day’s invoice and report numbers begin (default 1: GP1, GP2…). Never lower it below a number already issued today — an invoice number must not repeat.',
+      watch_check_interval_minutes: 'Default gap between checks of a watched vehicle.',
+      watch_interval_minutes_challan: 'Gap between challan checks. The only dataset that really moves.',
+      watch_interval_minutes_rc: 'Gap between RC checks.',
+      watch_interval_minutes_fastag: 'Gap between FASTag checks.',
+      renewal_notice_days: 'Days before a subscription ends that the reminder is sent.',
+      alert_send_hour_ist: 'Hour (IST, 0–23) the evening WhatsApp alert starts going out — one per mobile per day. 19 = 7 pm.',
+      alert_send_until_hour_ist: 'Hour (IST) after which no alert is sent that day. 22 = 10 pm.',
+    },
+  },
+  {
+    title: 'WhatsApp evening alerts',
+    note: 'Sent by the WhatsApp Cloud API — no webhook needed, only the access token and phone number id on the server. '
+      + 'Until the language templates are approved, leave "languages live" off and every alert uses the fallback.',
+    keys: {
+      template_vehicle_alert_languages_live: 'Off: every alert uses the fallback template. On: English or Hindi by the customer’s language, falling back if that fails. Switch on once Meta approves both.',
+      template_vehicle_alert_en: 'English template name (4 parameters: name · vehicle · what · details). Pending approval.',
+      template_vehicle_alert_hi: 'Hindi template name (same 4 parameters). Pending approval.',
+      template_vehicle_alert_fallback: 'The fallback — used now, and whenever the language template fails. Must be an APPROVED template (gp_vehicle_alert_v2 is; parameters: name · vehicle · details · date).',
+    },
+  },
+  {
+    title: 'Security',
+    note: 'The API is encrypted end to end and guarded. Anything refused is recorded under Security and emailed to you.',
+    keys: {
+      api_encryption_required: 'auto = required in production (the site and panel must use the encrypted channel); true / false to force it.',
+      rate_limit_per_minute_ip: 'API calls one address may make in a minute. Three times this blocks the address for a while.',
+      rate_limit_handshakes_per_minute_ip: 'New encrypted sessions one address may open in a minute.',
+      loop_limit_same_call_30s: 'The same call, with the same data, allowed this many times in 30 seconds.',
+      scrape_distinct_vehicles_per_hour_user: 'Different vehicles one account may check in an hour before it is stopped as scraping.',
+      scrape_distinct_vehicles_per_hour_ip: 'Different vehicles one address may check in an hour (across accounts) before it is blocked.',
+      block_automation_tools: 'Refuse curl, Python, headless browsers and similar tools on the website API.',
+      full_views_per_day_user: 'Full vehicle records one account may open in a day. Past it the basic view is shown (their PDF stays available) and you are told.',
+      temp_block_minutes: 'How long a blocked address is refused.',
+      notify_security: 'Email you when something is refused (batched).',
+      security_alert_cooldown_minutes: 'At most one security email per this many minutes.',
+    },
+  },
+  {
+    title: 'Alerts',
+    note: 'What the alert checker watches, every minute. An alert opens when a rule trips and closes itself when it clears; critical and warning alerts are emailed (notify_alerts).',
+    keys: {
+      alerts_enabled: 'Run the alert checks (true) or not (false).',
+      alert_api_error_pct: 'Records API: warn when this % of live calls fail in 15 minutes. 50% or more is always critical.',
+      alert_api_p95_ms: 'Records API: warn when the slowest 5% of calls take longer than this, in milliseconds.',
+      alert_wa_failure_pct: 'WhatsApp: warn when this % of messages sent in the last hour fail (at least 5 sent).',
+      alert_payment_failures_hour: 'Payments: warn when this many payments have a failed attempt in one hour.',
+      alert_traffic_spike_pct: 'Traffic: note when website visitors this hour are this % above the 7-day hourly average (at least 20).',
+      alert_daily_revenue_target_paise: 'Good news when the day passes this revenue, in paise (1900 = ₹19). 0 = off.',
+      notify_alerts: 'Email you when a critical or warning alert opens.',
+    },
+  },
+  {
+    title: 'Emails to you',
+    note: 'Sent from the noreply mailbox. Switch any of them off here; it takes effect within a minute.',
+    keys: {
+      admin_alert_emails: 'Who receives them — comma-separated. Empty means ADMINMAIL from the server settings.',
+      notify_wa_only_from: 'TEST MODE — while this has numbers (comma-separated), the WhatsApp emails below are sent only for activity from them. Clear it to be emailed about every customer.',
+      notify_wa_hi: 'WhatsApp — an email each time someone says Hi, marked "New contact" the first time they write.',
+      notify_wa_checks: 'WhatsApp — an email for every vehicle checked: the number, make and model, and whether it was found.',
+      notify_payments: 'An email for every successful payment, with the full breakdown and the invoice attached.',
+      notify_left_at_payment: 'WhatsApp — an email when someone opens the ₹19 payment link and has not paid 30 minutes later.',
+      notify_feedback: 'An email for every feedback note.',
+      notify_wa_opt_out: 'WhatsApp — an email when someone replies STOP.',
+      notify_sign_ins: 'An email each time someone signs in to gaadipe.in: who, device, place, IP. (The web sign-in is hidden while GaadiPe is WhatsApp-only.)',
+      notify_contact: 'An email for every message sent through the website’s Contact form.',
+      daily_summary_email: 'One summary of the day: revenue, take-home, payments, checks, sign-ins.',
+      daily_summary_hour_ist: 'Time (IST) the daily summary is sent, like 23:55 — late, so it covers the whole day. A plain hour works too: 21 = 9 pm.',
+      contact_per_hour_per_ip: 'How many Contact messages one IP may send in an hour.',
+    },
+  },
+  {
+    title: 'Emails to customers',
+    note: 'Vehicle updates by email, alongside WhatsApp — the copy that keeps working when a WhatsApp message cannot be sent. Paying customers get the full record daily; others get the basic view every few days. Only confirmed addresses are mailed, and every email has an unsubscribe link.',
+    keys: {
+      customer_email_enabled: 'Customer emails on (true) or off (false).',
+      customer_email_only_to: 'TEST MODE — while this has addresses, customer emails go ONLY to them. Clear it to send to every customer.',
+      customer_email_hour_ist: 'Hour (IST) the evening emails start. 19 = 7 pm.',
+      customer_email_until_hour_ist: 'Hour (IST) after which no evening email is started. 22 = 10 pm.',
+      customer_email_free_every_days: 'Customers who have not paid: one email every this many days.',
+      customer_email_free_active_days: 'Stop the free email once their last check is older than this many days.',
+      customer_email_per_tick: 'At most this many customer emails per minute (Hostinger limits).',
+    },
+  },
+  {
+    title: 'Tracking on the website',
+    note: 'Signed-in customers only: pages, clicks and actions, shown per customer on Live. What they type is never recorded.',
+    keys: {
+      track_clicks: 'Record every click / tap of signed-in customers (true / false).',
+      track_clicks_per_minute: 'Most clicks recorded per customer visit in a minute; extra are dropped.',
+      activity_retention_days: 'Page, click and action history older than this many days is deleted (the privacy policy says 180).',
+    },
+  },
+  {
+    title: 'Referral offer (QuizPe)',
+    note: 'Refer QuizPe to a parent → one free full report when they buy QuizPe premium. Nothing is ever sent to the parent. QuizPe is checked read-only.',
+    keys: {
+      report_unlock: 'How a full report is unlocked: pay (₹19 only), both (₹19 or refer), refer (referral only).',
+      referral_enabled: 'Referrals on (true) or paused (false). Earned rewards stay usable.',
+      referral_reward: 'The reward: free_report. (flat_off is reserved for a ₹10/₹20 discount later.)',
+      referral_flat_off_paise: 'For flat_off only: the discount in paise (1000 = ₹10).',
+      referral_monthly_cap: 'Most free reports one customer can earn in a month.',
+      referral_pending_max: 'Most invitations one customer can have waiting at once.',
+      referral_window_days: 'The parent must buy QuizPe premium within this many days of the referral.',
+      referral_credit_valid_days: 'A free report must be used within this many days.',
+      referral_min_quizpe_rupees: 'Smallest QuizPe payment that counts as premium, in rupees.',
+      referral_check_minutes: 'How often QuizPe is checked for new premium parents.',
+      admin_report_access_enabled: 'Show the owner-only “Report access” page (grant or revoke one vehicle’s report). true / false.',
+    },
+  },
+  {
+    title: 'Money',
+    keys: {
+      razorpay_fee_percent: "Razorpay's fee, as a percentage. UPI is nil today; cards about 2%.",
+      razorpay_fee_gst_percent: 'GST on that fee — 18% in India.',
+      whatsapp_message_cost_paise: 'What one WhatsApp template message costs, in paise (11 = ₹0.11). Taken out of take-home.',
+      sms_otp_cost_paise: 'What one SMS sign-in code costs, in paise (25 = ₹0.25). Taken out of take-home.',
+      ulip_cost_paise_vahan: 'What one VAHAN lookup costs us, in paise. Zero while ULIP is free.',
+      ulip_cost_paise_challan: 'What one e-Challan lookup costs us, in paise.',
+      ulip_cost_paise_fastag: 'What one FASTag lookup costs us, in paise.',
+    },
+  },
+  {
+    title: 'What customers are shown',
+    keys: {
+      owner_name_display: "masked or hidden. Masked shows the name as Parivahan stars it. There is no 'full' — personal details are never shown unmasked.",
+      document_numbers_display: 'masked or hidden. Masked shows the last four characters; never shown in full.',
+    },
+  },
+];
 
-function Switch({ on, onChange, label, disabled }) {
+export default function Settings() {
+  const { can } = useSession();
+  const [data, setData] = useState(null);
+  const [error, setError] = useState(null);
+  const [draft, setDraft] = useState({});
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(null);
+
+  const load = useCallback(async () => {
+    try { setError(null); setDraft({}); setData(await api.settings()); }
+    catch (e) { setError(e); }
+  }, []);
+  useEffect(() => { load(); }, [load]);
+
+  const [sp] = useSearchParams();
+  const [find, setFind] = useState(() => sp.get('q') || '');
+  useEffect(() => { setFind(sp.get('q') || ''); }, [sp]);
+  const value = (key) => (key in draft ? draft[key] : (data?.settings.find(s => s.key === key)?.value ?? ''));
+  const set = (key, v) => setDraft((d) => ({ ...d, [key]: v }));
+  const dirty = Object.keys(draft).length > 0;
+
+  const save = async () => {
+    setSaving(true); setSaved(null);
+    try {
+      const out = await api.saveSettings(draft);
+      setSaved(`${out.changed} setting${out.changed === 1 ? '' : 's'} saved.`);
+      await load();
+    } catch (e) { setError(e); } finally { setSaving(false); }
+  };
+
+  const known = new Set(GROUPS.flatMap(g => Object.keys(g.keys)));
+  // FIND (user, 2026-09-26): every word typed must appear in the setting's
+  // name, its explanation or its group. The command palette opens this page
+  // with ?q= filled in.
+  const words = find.toLowerCase().split(/\s+/).filter(Boolean);
+  const fits = (...texts) => !words.length || words.every((w) => texts.join(' ').toLowerCase().replace(/_/g, ' ').includes(w.replace(/_/g, ' ')));
+  const others = (data?.settings || []).filter(s => !known.has(s.key) && fits(s.key));
+  const shown = GROUPS.map((g) => ({ ...g, rows: Object.entries(g.keys).filter(([key, note]) => data?.settings.some(x => x.key === key) && fits(key, note, g.title)) }))
+    .filter((g) => g.rows.length);
+
   return (
-    <button type="button" role="switch" aria-checked={on} aria-label={label} disabled={disabled} onClick={() => onChange(!on)}
-      className={`relative h-6 w-11 shrink-0 rounded-full transition ${on ? 'bg-brand' : 'bg-line'} disabled:opacity-50`}>
-      <span className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-all ${on ? 'left-[22px]' : 'left-0.5'}`} />
-    </button>
+    <Shell title="Prices & settings" subtitle="Changes take effect within a minute — no deploy"
+      actions={dirty && (
+        <>
+          <button className="btn-quiet !py-1.5 text-2xs" onClick={() => setDraft({})}>Discard</button>
+          <button className="btn-primary !py-1.5 text-2xs" disabled={saving} onClick={save}>
+            {saving ? 'Saving…' : `Save ${Object.keys(draft).length} change(s)`}
+          </button>
+        </>
+      )}>
+
+      {error && <Failed error={error} onRetry={load} />}
+      {saved && <Banner tone="good" className="mb-4">{saved}</Banner>}
+      {!data && !error && <Spinner />}
+
+      {data && (
+        <div className="space-y-4">
+          <div className="card flex flex-wrap items-center gap-2 p-3">
+            <input className="input !py-2" autoFocus={Boolean(find)} value={find} onChange={(e) => setFind(e.target.value)}
+              placeholder="Find a setting — e.g. email test, backup, price, whatsapp cost" aria-label="Find a setting" />
+            {find && <button className="btn-quiet !py-2 text-2xs" onClick={() => setFind('')}>Show all</button>}
+            {find && <span className="text-2xs text-muted">{shown.reduce((n, g) => n + g.rows.length, 0) + others.length} match(es)</span>}
+          </div>
+          {!words.length && (
+          <div className="card">
+            <div className="border-b border-line px-5 py-3">
+              <h2 className="text-sm font-semibold text-ink">Plans</h2>
+              <p className="text-2xs text-muted">
+                What a customer is charged. Changing a price here changes the website, the bot and the
+                checkout page together.
+              </p>
+            </div>
+            <Table head={<tr><th className="th">Plan</th><th className="th">Price</th><th className="th">Discount</th><th className="th">Days</th><th className="th">Active</th><th className="th"></th></tr>}>
+              {data.plans.map((p) => <PlanRow key={p.code} plan={p} onSaved={load} />)}
+            </Table>
+          </div>
+          )}
+          {words.length > 0 && !shown.length && !others.length && (
+            <div className="card px-5 py-6 text-center text-sm text-muted">No setting matches “{find}”. Try fewer or different words.</div>
+          )}
+
+          {shown.map((g) => (
+            <div key={g.title} className="card">
+              <div className="border-b border-line px-5 py-3">
+                <h2 className="text-sm font-semibold text-ink">{g.title}</h2>
+                {g.note && <p className="text-2xs text-muted">{g.note}</p>}
+              </div>
+              <div className="divide-y divide-line">
+                {g.rows.map(([key, note]) => (
+                    <div key={key} className="grid gap-2 px-5 py-3 sm:grid-cols-2 sm:items-center">
+                      <div>
+                        <div className="font-mono text-2xs text-ink">{key}</div>
+                        <div className="text-2xs text-muted">{note}</div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {/^(true|false)$/i.test(String(value(key))) ? (
+                          /* An on/off setting is a switch, not a text box. */
+                          <button type="button" role="switch" aria-checked={String(value(key)).toLowerCase() === 'true'}
+                            onClick={() => set(key, String(value(key)).toLowerCase() === 'true' ? 'false' : 'true')}
+                            className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition ${String(value(key)).toLowerCase() === 'true' ? 'bg-brand' : 'bg-line'} ${key in draft ? 'ring-2 ring-brand-accent/40' : ''}`}>
+                            <span className={`inline-block h-5 w-5 rounded-full bg-white shadow transition ${String(value(key)).toLowerCase() === 'true' ? 'translate-x-5' : 'translate-x-0.5'}`} />
+                          </button>
+                        ) : (
+                        <input className={`input !py-2 ${key in draft ? '!border-brand-accent' : ''}`}
+                          value={value(key)} onChange={(e) => set(key, e.target.value)} />
+                        )}
+                        {/^(true|false)$/i.test(String(value(key))) && (
+                          <span className="text-2xs font-semibold text-muted">{String(value(key)).toLowerCase() === 'true' ? 'On' : 'Off'}</span>
+                        )}
+                        {/^\d+$/.test(String(value(key))) && /paise/.test(key) && (
+                          <span className="whitespace-nowrap text-2xs text-muted">
+                            = {rupees(Number(value(key)))}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+              </div>
+            </div>
+          ))}
+
+          {others.length > 0 && (
+            <details className="card" open={words.length > 0}>
+              <summary className="cursor-pointer px-5 py-3 text-sm font-semibold text-ink">
+                Everything else ({others.length})
+              </summary>
+              <div className="divide-y divide-line border-t border-line">
+                {others.map((s) => (
+                  <div key={s.key} className="grid gap-2 px-5 py-2.5 sm:grid-cols-2 sm:items-center">
+                    <Hint note={`Last changed ${dateTime(s.modified_at)}`}>
+                      <span className="font-mono text-2xs text-body">{s.key}</span>
+                    </Hint>
+                    <input className={`input !py-2 ${s.key in draft ? '!border-brand-accent' : ''}`}
+                      value={value(s.key)} onChange={(e) => set(s.key, e.target.value)} />
+                  </div>
+                ))}
+              </div>
+            </details>
+          )}
+
+          {allowed(can, 'admins') && <BackupDatabase />}
+          {allowed(can, 'admins') && <CleanDatabase />}
+        </div>
+      )}
+    </Shell>
   );
 }
 
-export default function Settings() {
-  const { prefs, save } = usePrefs();
-  const { me } = useSession();
-  const s = prefs.sound;
-  const [perm, setPerm] = useState(() => ('Notification' in window ? Notification.permission : 'unsupported'));
-  const sessions = useLoad(() => api.mySessions(), [], { everyMs: 0 });
-  const [online, setOnline] = useState([]);
-  useEffect(() => { api.presence('/settings').then((o) => setOnline(o.rows || [])).catch(() => {}); }, []);
-  useEffect(() => { if (window.location.hash === '#sessions') document.getElementById('sessions')?.scrollIntoView(); }, []);
+function PlanRow({ plan, onSaved }) {
+  const [edit, setEdit] = useState(null);
+  const [busy, setBusy] = useState(false);
+
+  const save = async () => {
+    setBusy(true);
+    try {
+      await api.savePlan(plan.code, {
+        price_paise: Number(edit.price_paise),
+        duration_days: Number(edit.duration_days),
+        is_active: edit.is_active,
+        // Typed in rupees (₹4), kept in paise (2026-10-03).
+        discount_paise: Math.round(Number(edit.discount_rupees || 0) * 100),
+      });
+      setEdit(null); onSaved();
+    } catch (e) { window.alert(e.message); } finally { setBusy(false); }
+  };
 
   return (
-    <>
-      <h1 className="text-lg font-semibold">Settings</h1>
-
-      <Section title="Alert sounds" hint="One sound per severity per cooldown, however many alerts arrive — never a stream of noise.">
-        <div className="card divide-y divide-line">
-          <div className="flex items-center gap-3 px-4 py-3"><span className="flex-1 text-sm font-semibold text-ink">All sounds</span><Switch on={s.master} label="All sounds" onChange={(v) => save({ sound: { master: v } })} /></div>
-          {SEVERITIES.map((sev) => (
-            <div key={sev} className="flex items-center gap-3 px-4 py-2.5">
-              <span className="flex-1 text-sm capitalize">{sev}</span>
-              <button type="button" className="btn-quiet !px-2.5 !py-1 text-2xs" onClick={() => play(sev, s, { force: true })}>▶ Test</button>
-              <Switch on={s[sev]} label={`${sev} sound`} disabled={!s.master} onChange={(v) => save({ sound: { [sev]: v } })} />
-            </div>))}
-          <div className="flex flex-wrap items-center gap-3 px-4 py-3">
-            <label className="flex flex-1 items-center gap-3 text-sm">Volume
-              <input type="range" min="0" max="100" value={s.volume} onChange={(e) => save({ sound: { volume: Number(e.target.value) } })} className="flex-1 accent-[#0f766e]" />
-              <span className="tabular w-10 text-right text-2xs">{s.volume}%</span></label>
-            <label className="flex items-center gap-2 text-sm">Cooldown
-              <select className="input !w-auto !py-1 text-2xs" value={s.cooldown} onChange={(e) => save({ sound: { cooldown: Number(e.target.value) } })}>
-                {[[10, '10 sec'], [30, '30 sec'], [60, '1 min'], [300, '5 min']].map(([v, l]) => <option key={v} value={v}>{l}</option>)}
-              </select></label>
+    <tr>
+      <td className="td">
+        <div className="font-semibold text-ink">{plan.name}</div>
+        <div className="font-mono text-2xs text-muted">{plan.code} · {plan.kind}</div>
+      </td>
+      <td className="td tabular">
+        {edit ? (
+          <input className="input !w-28 !py-1.5" value={edit.price_paise}
+            onChange={(e) => setEdit({ ...edit, price_paise: e.target.value })} />
+        ) : (
+          <Hint note={`${plan.price_paise} paise, GST inclusive`}>
+            <span className="font-semibold">{rupees(plan.price_paise)}</span>
+          </Hint>
+        )}
+      </td>
+      {/* THE DISCOUNT (user, 2026-10-03): comes off the price everywhere — bot,
+          website, checkout, invoice — and shows as the old price struck through. */}
+      <td className="td tabular">
+        {edit ? (
+          <span className="flex items-center gap-1">
+            <span className="text-muted">₹</span>
+            <input className="input !w-20 !py-1.5" inputMode="decimal" value={edit.discount_rupees}
+              onChange={(e) => setEdit({ ...edit, discount_rupees: e.target.value })} aria-label="Discount in rupees" />
+            <span className="whitespace-nowrap text-2xs text-muted">
+              → pays {rupees(Math.max(0, Number(edit.price_paise) - Math.round(Number(edit.discount_rupees || 0) * 100)))}
+            </span>
+          </span>
+        ) : Number(plan.discount_paise) > 0 ? (
+          <Hint note="Comes off the price everywhere the customer sees and pays it.">
+            <span><b className="text-good-700">{rupees(plan.discount_paise)} off</b> <span className="text-2xs text-muted">→ pays {rupees(plan.price_paise - plan.discount_paise)}</span></span>
+          </Hint>
+        ) : <span className="text-muted">—</span>}
+      </td>
+      <td className="td tabular">
+        {edit ? (
+          <input className="input !w-20 !py-1.5" value={edit.duration_days}
+            onChange={(e) => setEdit({ ...edit, duration_days: e.target.value })} />
+        ) : plan.duration_days}
+      </td>
+      <td className="td">
+        {edit ? (
+          <input type="checkbox" checked={edit.is_active}
+            onChange={(e) => setEdit({ ...edit, is_active: e.target.checked })} />
+        ) : (plan.is_active ? 'Yes' : 'No')}
+      </td>
+      <td className="td">
+        {edit ? (
+          <div className="flex gap-1.5">
+            <button className="btn-primary !px-2.5 !py-1 text-2xs" disabled={busy} onClick={save}>
+              {busy ? '…' : 'Save'}
+            </button>
+            <button className="btn-quiet !px-2.5 !py-1 text-2xs" onClick={() => setEdit(null)}>Cancel</button>
           </div>
-        </div>
-      </Section>
-
-      <Section title="Desktop notifications" hint="A notice from the browser when an alert arrives while this tab is in the background.">
-        <div className="card flex flex-wrap items-center gap-3 px-4 py-3">
-          <span className="flex-1 text-sm">{perm === 'granted' ? '✅ Allowed in this browser' : perm === 'denied' ? '⛔ Blocked in this browser’s settings' : perm === 'unsupported' ? 'This browser cannot show them' : 'Not allowed yet'}</span>
-          {perm === 'default' ? <button className="btn-primary !py-1.5 text-2xs" onClick={async () => setPerm(await Notification.requestPermission())}>Allow</button> : null}
-          <Switch on={prefs.desktop} label="Desktop notifications" onChange={(v) => save({ desktop: v })} />
-          {perm === 'granted' ? <button className="btn-quiet !py-1.5 text-2xs" onClick={() => { try { new Notification('GaadiPe · TEST', { body: 'Desktop notifications work in this browser.' }); } catch { /* blocked */ } play('info', s, { force: true }); }}>Send a test</button> : null}
-        </div>
-      </Section>
-
-      <Section title="Auto-lock" hint="After this long without a click or a key, the panel signs out and asks for the passcode again.">
-        <div className="card flex items-center gap-3 px-4 py-3">
-          <span className="flex-1 text-sm">Lock after</span>
-          <select className="input !w-auto !py-1.5 text-sm" value={prefs.lockMinutes} onChange={(e) => save({ lockMinutes: Number(e.target.value) })}>
-            {LOCKS.filter(([v]) => v || me?.role === 'owner').map(([v, l]) => <option key={v} value={v}>{l}</option>)}
-          </select>
-        </div>
-      </Section>
-
-      <Section title="My sessions" hint="Everywhere you are signed in to the admin panels.">
-        <div id="sessions" />
-        <State loading={sessions.loading} error={sessions.error}>
-          {sessions.data?.rows?.length ? (
-            <>
-              <Table head={['Browser', 'IP', 'Signed in', 'Last used', '']}>
-                {sessions.data.rows.map((x) => (
-                  <tr key={x.id}>
-                    <td className="td max-w-[22rem] truncate text-2xs" title={x.user_agent}>{x.current ? <span className="chip mr-1.5 bg-good-50 text-good-700">this one</span> : null}{x.user_agent}</td>
-                    <td className="td font-mono text-2xs">{x.ip}</td>
-                    <td className="td text-2xs">{dateTime(x.created_at)}</td>
-                    <td className="td text-2xs">{ago(x.last_used_at)}</td>
-                    <td className="td">{!x.current ? <button className="btn-quiet !px-2.5 !py-1 text-2xs text-wrong-700" onClick={async () => { await api.endMySessions(x.id); sessions.reload(); }}>Sign out</button> : null}</td>
-                  </tr>))}
-              </Table>
-              {sessions.data.rows.length > 1 ? (
-                <button className="btn-quiet mt-2 text-2xs text-wrong-700" onClick={async () => { if (window.confirm('Sign out every other session?')) { await api.endMySessions('others'); sessions.reload(); } }}>Sign out all other sessions</button>) : null}
-            </>
-          ) : null}
-        </State>
-      </Section>
-
-      <Section title="Admins online now" hint="Who else has the web admin open, and on which screen.">
-        <div className="card divide-y divide-line">
-          {online.length ? online.map((p) => (
-            <div key={`${p.admin_id}-${p.at}`} className="flex items-center gap-3 px-4 py-2 text-sm">
-              <span className="live-dot h-2 w-2 rounded-full bg-good-500" /><span className="flex-1 text-ink">{p.name} <span className="text-2xs text-muted">({p.role})</span></span>
-              <span className="font-mono text-2xs text-muted">{p.screen}</span><span className="text-2xs text-muted">{ago(p.at)}</span>
-            </div>)) : <div className="px-4 py-3 text-sm text-muted">Only you.</div>}
-        </div>
-      </Section>
-    </>
+        ) : (
+          <button className="btn-quiet !px-2.5 !py-1 text-2xs"
+            onClick={() => setEdit({ price_paise: plan.price_paise, duration_days: plan.duration_days, is_active: plan.is_active, discount_rupees: String(Number(plan.discount_paise || 0) / 100) })}>
+            Edit
+          </button>
+        )}
+      </td>
+    </tr>
   );
 }

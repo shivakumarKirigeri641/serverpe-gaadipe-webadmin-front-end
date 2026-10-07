@@ -1,116 +1,741 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
+import { Rolling } from '../lib/motion.jsx';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../lib/api';
-import { useLoad } from '../lib/useLoad';
-import { useRange } from '../components/Layout.jsx';
-import { Search, SourceChip, Stat, State, Table } from '../components/ui.jsx';
-import { ago, dateTime, num, placeOf, rupees } from '../lib/format';
+import { useAutoRefresh } from '../lib/useAutoRefresh';
+import { rupees, count, mobile as fmtMobile, plate, dateTime, ago, daysTo, date, duration } from '../lib/format';
+import Shell from '../components/Shell.jsx';
+import { Row as SignInRow, Detail as SignInDetail } from './SignIns.jsx';
+import { SessionsTable, VisitSummary } from '../components/Sessions.jsx';
+import { Table, Hint, Chip, Modal, Empty, Spinner, Failed, Banner, openBlob, saveBlob, Pager, PAGE_SIZE } from '../components/ui.jsx';
+import { useSession, allowed } from '../lib/session';
 
 /**
- * EVERY CUSTOMER, WEBSITE AND WHATSAPP (2026-10-07). One account per mobile;
- * each tagged by where they used GaadiPe and by how an alert can reach them now
- * that WhatsApp is disabled — browser notifications, a confirmed email, or
- * nothing (they only hear from GaadiPe when they open the site).
+ * Every customer, one row each, and everything about one of them on a tap.
+ *
+ * THE ROW IS THE PRODUCT HERE. Who they are, how much they have checked, what
+ * they have paid, when they were last seen, and whether they are blocked —
+ * enough to decide who is worth opening, without opening anybody. Anything
+ * longer than a few characters is a hover away rather than a column.
+ *
+ * The detail comes back in ONE request, because a panel that fetches a person
+ * and then asks eight follow-up questions makes the reader wait eight times.
  */
-const CHANNELS = [['all', 'Everyone'], ['web', 'Website only'], ['whatsapp', 'WhatsApp only'], ['both', 'Both']];
-const REACH = [['all', 'Any'], ['push', '🔔 Notifications'], ['email', '✉️ Email'], ['none', '⚠️ Cannot be reached']];
-const CH_CHIP = {
-  web: ['Website', 'bg-brand/10 text-brand'],
-  whatsapp: ['WhatsApp', 'bg-good-50 text-good-700'],
-  both: ['Website + WhatsApp', 'bg-[#eef2ff] text-[#3730a3]'],
+/* Who to look at (phase 3) — the back end holds what each one means. */
+const SEGMENTS = [
+  ['new', 'New (last 7 days)'], ['returning', 'Returning'], ['paid', 'Paid'], ['unpaid', 'Never paid'],
+  ['wa_active', 'WhatsApp active (24 h)'], ['wa_inactive', 'WhatsApp quiet'],
+  ['pay_failed', 'Payment not completed'], ['suspicious', 'Worth a look'],
+  // Left out of every other view and the total (user, 2026-09-30).
+  ['stopped', 'Said STOP'],
+  // Said STOP, then turned messages back on — START or Undo (user, 2026-10-02).
+  ['came_back', 'Came back after STOP'],
+];
+/* Joined today (this browser's date): a light tint on the row (user, 2026-09-26). */
+const isToday = (t) => Boolean(t) && new Date(t).toDateString() === new Date().toDateString();
+
+/* ▲ / ▼ against yesterday up to the same time. */
+function Delta({ now, before }) {
+  if (before == null) return null;
+  if (!before) return <span className="text-muted">{now ? 'none yesterday' : 'same as yesterday'}</span>;
+  // The change in people and in per cent (user, 2026-09-30): "▲ +3 (+25%)".
+  const diff = now - before;
+  const d = Math.round((diff / before) * 100);
+  if (!diff) return <span className="text-muted">same as yesterday</span>;
+  const sign = diff > 0 ? '+' : '−';
+  return (
+    <span className={`font-semibold ${diff > 0 ? 'text-good-700' : 'text-wrong-700'}`}>
+      {diff > 0 ? '▲' : '▼'} {sign}{count(Math.abs(diff))} ({sign}{Math.abs(d)}%)
+    </span>
+  );
+}
+
+/* What each column means, shown on hover (user, 2026-09-26). */
+const HEAD = [
+  ['Customer', 'Their WhatsApp name (or the name given at checkout) and mobile number. “Journey →” shows everything they did, in order. Green rows joined today.'],
+  ['Vehicles', 'Different vehicle numbers this person has checked.'],
+  ['Checks', 'Every lookup they made, including the same vehicle again.'],
+  ['Reports', 'Full reports they bought.'],
+  ['Paid', 'Money they have paid in total. Hover for the number of payments, refunds and when they last paid.'],
+  ['WhatsApp', 'Messages exchanged with the bot, in and out, and how long ago the last one was. A pulsing green dot = messaged in the last 15 minutes. Below: In window = wrote in the last 24 hours, so the bot can reply free; Quiet = not recently; STOP = asked not to be messaged.'],
+  ['Came from', 'Where they first came from: a WhatsApp ad, a website visit (and its source), or straight to the WhatsApp number. “Unfinished payment” = opened a payment and did not pay.'],
+  ['Last seen', 'The last time they did anything — a message, a check, a website visit.'],
+  ['State', 'Blocked, paused, monitoring alerts running (and until when), or an internal/test account.'],
+  ['Where', 'Their state, roughly. In order of trust: the state they gave at checkout; else from their website visits (internet address — on mobile data often the operator’s city); else the state their vehicle is registered in. No GPS is ever collected.'],
+];
+const SOURCE = {
+  declared: ['given at checkout', 'The state they chose at checkout (it decides GST). The most reliable.'],
+  internet: ['from website visits', 'Looked up from the internet address of their website visits. On mobile data this is often the operator’s location, so treat it as a hint.'],
+  vehicle: ['vehicle’s state', 'Nothing better is known: this is where their most-checked vehicle is registered. Many people check vehicles from other states, so it is only a guess.'],
+};
+
+const WA_STATUS = {
+  active: ['In window', 'good'], inactive: ['Quiet', 'info'], stopped: ['STOP', 'wrong'],
 };
 
 export default function Customers() {
-  const [range] = useRange();
   const navigate = useNavigate();
+  const [exporting, setExporting] = useState(false);
   const [q, setQ] = useState('');
-  const [term, setTerm] = useState('');
-  const [channel, setChannel] = useState('all');
-  const [reach, setReach] = useState('all');
-  const [everyone, setEveryone] = useState(false);
-  useEffect(() => { const t = setTimeout(() => setTerm(q.trim()), 400); return () => clearTimeout(t); }, [q]);
-  const { data, error, loading, reload } = useLoad(
-    (quiet) => api.customers({ range, q: term, channel, reach, active: everyone ? 'all' : '', limit: 150 }, quiet),
-    [range, term, channel, reach, everyone]);
-  const s = data?.summary;
+  const [sort, setSort] = useState('last_seen');
+  const [filter, setFilter] = useState('all');
+  const [data, setData] = useState(null);
+  const [error, setError] = useState(null);
+  const [openId, setOpenId] = useState(null);
+  const [page, setPage] = useState(1);
+
+  // A new search or filter starts again from the first page.
+  useEffect(() => { setPage(1); }, [q, sort, filter]);
+
+  const load = useCallback(async () => {
+    try {
+      setError(null);
+      const params = { q, sort, limit: PAGE_SIZE, offset: (page - 1) * PAGE_SIZE };
+      if (filter === 'paying') params.paying = 1;
+      if (filter === 'blocked') params.blocked = 1;
+      if (SEGMENTS.some(([k]) => k === filter)) params.segment = filter;
+      setData(await api.customers(params));
+    } catch (e) { setError(e); }
+  }, [q, sort, filter, page]);
+
+  /* Typing searches, but not on every keystroke: a search per character is a
+     request per character, and the table flickering under the reader's hands. */
+  useEffect(() => {
+    const t = setTimeout(load, q ? 300 : 0);
+    return () => clearTimeout(t);
+  }, [load, q]);
+  useAutoRefresh(load);
 
   return (
-    <>
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <h1 className="text-lg font-semibold">Customers</h1>
-          <p className="text-2xs text-muted">Website and WhatsApp customers together — one account per mobile number.</p>
+    <Shell title="Customers"
+      subtitle={data ? `${count(data.total)} in total${data.today ? ` · ${count(data.today.joined)} new today` : ''}` : ' '}
+      actions={
+        <div className="flex items-center gap-2">
+          <input className="input !w-56 !py-1.5 text-sm" placeholder="Number, name or plate"
+            value={q} onChange={(e) => setQ(e.target.value)} />
+          <select className="input !w-auto !py-1.5 text-sm" value={sort} onChange={(e) => setSort(e.target.value)}>
+            <option value="last_seen">Last seen</option>
+            <option value="joined">Newest</option>
+            <option value="paid">Paid most</option>
+            <option value="checks">Most checks</option>
+            <option value="reports">Most reports</option>
+            <option value="messages">Most WhatsApp messages</option>
+          </select>
+          <select className="input !w-auto !py-1.5 text-sm" value={filter} onChange={(e) => setFilter(e.target.value)}>
+            <option value="all">Everyone</option>
+            {SEGMENTS.map(([k, l]) => <option key={k} value={k}>{l}</option>)}
+            <option value="paying">Monitoring active</option>
+            <option value="blocked">Blocked</option>
+          </select>
+          <button className="btn-quiet !py-1.5 text-2xs" disabled={exporting} title="Every customer, as CSV (recorded in the audit trail)"
+            onClick={async () => {
+              setExporting(true);
+              try { const { blob, filename } = await api.exportCsv('customers', {}); saveBlob(blob, filename); }
+              catch (e) { alert(e.message || 'Export failed.'); }
+              setExporting(false);
+            }}>{exporting ? 'Exporting…' : 'Export CSV'}</button>
         </div>
-        <Search value={q} onChange={setQ} placeholder="Mobile, name or email" />
-      </div>
+      }>
 
-      {s ? (
-        <div className="mt-4 grid grid-cols-2 gap-3 md:grid-cols-4">
-          <Stat label="All customers" value={num(s.total)} sub={`${num(s.web_only)} website · ${num(s.whatsapp_only)} WhatsApp · ${num(s.both)} both`} />
-          <Stat label="Get notifications" value={num(s.push)} sub="browser alerts on a phone" tone={s.push ? 'good' : undefined} />
-          <Stat label="Confirmed email" value={num(s.email)} sub="alerts by email" tone={s.email ? 'good' : undefined} />
-          <Stat label="Cannot be reached" value={num(s.unreachable)} sub={`${num(s.whatsapp_unreachable)} of them came on WhatsApp`} tone={s.unreachable ? 'wrong' : undefined} />
+      {/* Today at a glance (user, 2026-09-26): IST day, whatever the filter. */}
+      {data?.today && (
+        <div className="mb-3 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5 lg:max-w-5xl">
+          {[
+            ['Customers', data.total,
+              q || filter !== 'all' ? 'in this view'
+                : data.today.customers_yesterday_full != null
+                  ? <>+{count(data.today.customers_today)} today vs +{count(data.today.customers_yesterday_full)} yesterday · <Delta now={data.today.customers_today} before={data.today.customers_yesterday_full} /></>
+                  : 'all time', null,
+              q || filter !== 'all' ? 'Customers matching your search or filter.' : 'Everyone who has used GaadiPe — on WhatsApp or the website — except those who replied STOP. Below: new customers today against the whole of yesterday (IST).'],
+            // Full reports and vehicle checks, all time with today (user, 2026-10-03).
+            ...(data.today.reports_total != null ? [
+              ['Full reports', data.today.reports_total,
+                <>+{count(data.today.reports_today)} today vs +{count(data.today.reports_yesterday_full)} yesterday · <Delta now={data.today.reports_today} before={data.today.reports_yesterday_full} /></>, null,
+                'Paid full reports, all time. Below: bought today against the whole of yesterday (IST).'],
+              ['Vehicle checks', data.today.checks_total,
+                <>
+                  {data.today.checks_distinct != null && (
+                    <span className="block"><b className="text-ink">{count(data.today.checks_distinct)}</b> distinct · <b className="text-ink">{count(data.today.checks_total - data.today.checks_distinct)}</b> repeated</span>
+                  )}
+                  +{count(data.today.checks_today)} today{data.today.checks_today_distinct != null ? ` (${count(data.today.checks_today_distinct)} distinct)` : ''} vs +{count(data.today.checks_yesterday_full)} yesterday · <Delta now={data.today.checks_today} before={data.today.checks_yesterday_full} />
+                </>, null,
+                `Every vehicle check customers made on WhatsApp and the website, all time — a repeat of the same vehicle included. Distinct: different vehicles. Repeated: the rest. ${data.today.repeats_since
+                  ? `Repeats are counted from ${date(data.today.repeats_since)}; earlier repeats were not recorded.`
+                  : 'Repeats are counted from the first one recorded after this update went live; earlier repeats were not recorded.'} Below: today against the whole of yesterday (IST).`],
+            ] : []),
+            ['New today', data.today.joined, <>vs {count(data.today.joined_yesterday)} yesterday · <Delta now={data.today.joined} before={data.today.joined_yesterday} /></>, 'joined',
+              'People who used GaadiPe for the first time since midnight (IST), against yesterday up to the same time. Their rows are tinted green. Tap to sort newest first.'],
+            ['Active today', data.today.active, <>vs {count(data.today.active_yesterday)} yesterday · <Delta now={data.today.active} before={data.today.active_yesterday} /></>, 'last_seen',
+              'Different people who did anything since midnight (IST) — a message, a check, a payment — against yesterday up to the same time. Tap to sort by last seen.'],
+          ].map(([label, value, sub, sortBy, note]) => (
+            <Hint key={label} note={note}>
+              <button type="button" disabled={!sortBy} onClick={() => sortBy && setSort(sortBy)}
+                className={`card w-full px-3 py-2 text-left ${sortBy ? 'lift hover:shadow-pop' : 'cursor-default'} ${label === 'New today' && value ? 'bg-good-50/70' : ''}`}>
+                <div className="text-2xs font-semibold uppercase tracking-wider text-muted">{label}</div>
+                <div className="tabular text-xl font-semibold text-ink"><Rolling text={count(value)} /></div>
+                <div className="text-2xs text-muted">{sub}{sortBy && <span className="text-brand-deep"> · tap to sort</span>}</div>
+              </button>
+            </Hint>
+          ))}
         </div>
-      ) : null}
-      {s?.whatsapp_unreachable ? (
-        <p className="mt-2 rounded-lg bg-watch-50 px-3 py-2 text-2xs text-watch-700">
-          {num(s.whatsapp_unreachable)} WhatsApp customer{s.whatsapp_unreachable === 1 ? '' : 's'} have no notifications and no confirmed email, so alerts cannot reach them
-          until they sign in at gaadipe.in and add an email or allow notifications. The chat asks them to as soon as they sign in.
-        </p>
-      ) : null}
+      )}
 
-      <div className="mt-4 flex flex-wrap items-center gap-2">
-        <select className="input !w-auto !py-1.5 text-sm" value={channel} onChange={(e) => setChannel(e.target.value)} aria-label="Where they came">
-          {CHANNELS.map(([k, l]) => <option key={k} value={k}>{l}</option>)}
-        </select>
-        <select className="input !w-auto !py-1.5 text-sm" value={reach} onChange={(e) => setReach(e.target.value)} aria-label="How alerts reach them">
-          {REACH.map(([k, l]) => <option key={k} value={k}>{l}</option>)}
-        </select>
-        <label className="inline-flex items-center gap-2 text-2xs text-muted">
-          <input type="checkbox" checked={everyone} onChange={(e) => setEveryone(e.target.checked)} className="accent-[#0f766e]" />
-          Everyone ever (not only active in this period)
-        </label>
-      </div>
+      {/* Why people said STOP, counted (user, 2026-10-02). */}
+      {filter === 'stopped' && data?.stop_reasons?.length > 0 && (
+        <div className="card mb-3 p-3">
+          <div className="mb-2 text-2xs font-semibold uppercase tracking-wider text-muted">Why they said STOP</div>
+          <div className="flex flex-wrap gap-2">
+            {data.stop_reasons.map((s) => {
+              const all = data.stop_reasons.reduce((a, x) => a + x.n, 0);
+              return (
+                <span key={s.reason} className={`rounded-full border px-3 py-1 text-sm ${s.reason === 'No answer' ? 'border-line text-muted' : 'border-wrong-500/30 bg-wrong-50 text-wrong-700'}`}>
+                  {s.reason} · <b>{s.n}</b> <span className="text-2xs opacity-70">({Math.round((s.n / all) * 100)}%)</span>
+                </span>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
-      <div className="mt-3">
-        <State loading={loading} error={error} onRetry={reload} empty={data && !data.rows.length ? 'No customers match.' : null}>
-          {data?.rows.length ? (
-            <>
-              <div className="mb-2 text-2xs text-muted">{num(data.total)} customer{data.total === 1 ? '' : 's'}</div>
-              <Table head={['Customer', 'Used', 'Last seen', 'Alerts reach them', 'Came from', 'Vehicles', 'Paid', 'Since']}>
-                {data.rows.map((c) => {
-                  const [chLabel, chCls] = CH_CHIP[c.channel] || CH_CHIP.web;
-                  return (
-                    <tr key={c.user_id} className="cursor-pointer hover:bg-shell/60" onClick={() => navigate(`/customers/${c.user_id}`)}>
-                      <td className="td">
-                        <div className="flex items-center gap-1.5 text-ink">{c.name || '-'}{c.is_new ? <span className="chip bg-good-50 text-good-700">new</span> : null}</div>
-                        <div className="tabular text-2xs text-muted">{c.mobile}{c.email ? ` · ${c.email}` : ''}</div>
-                      </td>
-                      <td className="td"><span className={`chip ${chCls}`}>{chLabel}</span>{c.wa_stop ? <div className="mt-1 text-2xs text-wrong-700">replied STOP</div> : null}</td>
-                      <td className="td whitespace-nowrap">
-                        <div>{ago(c.last_seen)}</div>
-                        <div className="text-2xs text-muted">{c.web_last ? `web ${ago(c.web_last)}` : ''}{c.web_last && c.wa_last ? ' · ' : ''}{c.wa_last ? `WhatsApp ${ago(c.wa_last)}` : ''}</div>
-                      </td>
-                      <td className="td">
-                        <div className="flex flex-wrap gap-1">
-                          {c.push_devices ? <span className="chip bg-good-50 text-good-700">🔔 {c.push_devices}</span> : null}
-                          {c.email_ok ? <span className="chip bg-good-50 text-good-700">✉️ email</span>
-                            : c.email ? <span className="chip bg-watch-50 text-watch-700">✉️ not confirmed</span> : null}
-                          {!c.push_devices && !c.email_ok ? <span className="chip bg-wrong-50 text-wrong-700">⚠️ none</span> : null}
+      <div className="card">
+        {error ? <Failed error={error} onRetry={load} />
+          : !data ? <Spinner />
+          : !data.rows.length ? <Empty>{q ? `Nobody matches “${q}”.` : 'No customers yet.'}</Empty>
+          : (
+            <Table head={
+              <tr>
+                {HEAD.map(([label, note]) => (
+                  <th key={label} className="th">
+                    <Hint note={note}><span className="border-b border-dotted border-muted/50">{label}</span></Hint>
+                  </th>
+                ))}
+              </tr>
+            }>
+              {data.rows.map((r) => (
+                <tr key={r.id} className={`cursor-pointer transition hover:bg-shell/70 ${isToday(r.created_at) ? 'bg-good-50/70' : ''}`}
+                  onClick={() => setOpenId(r.id)}>
+                  <td className="td">
+                    <div className="font-semibold text-ink">
+                      {r.name || 'Unknown'}
+                      {isToday(r.created_at) && <span className="ml-1.5 rounded bg-good-50 px-1 align-middle text-[10px] font-semibold text-good-700 ring-1 ring-good-500/30" title={`Joined ${dateTime(r.created_at)}`}>New today</span>}
+                    </div>
+                    <div className="tabular text-2xs text-muted">
+                      {fmtMobile(r.mobile)}
+                      <button className="ml-2 text-brand-deep hover:underline" title="Everything this person did, in order"
+                        onClick={(e) => { e.stopPropagation(); navigate(`/journey?mobile=${r.mobile}`); }}>Journey →</button>
+                    </div>
+                  </td>
+                  <td className="td tabular">{count(r.vehicles_checked)}</td>
+                  <td className="td tabular">
+                    <Hint note={`${count(r.checks_made)} lookups in total across ${count(r.vehicles_checked)} vehicles. ${r.messages} WhatsApp messages exchanged.`}>
+                      <span className="border-b border-dotted border-muted/40">{count(r.checks_made)}</span>
+                    </Hint>
+                  </td>
+                  <td className="td tabular">{count(r.reports_bought)}</td>
+                  <td className="td tabular">
+                    {r.paid_paise ? (
+                      <Hint note={`${count(r.payments_made)} payment(s). ${r.refunded_paise ? `${rupees(r.refunded_paise)} refunded. ` : ''}Last paid ${ago(r.last_paid_at)}.`}>
+                        <span className="font-semibold text-ink">{rupees(r.paid_paise)}</span>
+                      </Hint>
+                    ) : <span className="text-muted">—</span>}
+                  </td>
+                  {/* WhatsApp-first (user, 2026-09-25): messages, not web sign-ins —
+                      the chat is where customers are. Web visits stay in the
+                      customer's detail, under Sign-ins & visits. */}
+                  <td className="td tabular">
+                    {r.messages ? (
+                      <Hint note={`${r.messages} WhatsApp message${r.messages === 1 ? '' : 's'}, in and out. Last one ${r.last_message_at ? dateTime(r.last_message_at) : '—'}.${r.sign_ins ? ` Also ${r.sign_ins} website sign-in${r.sign_ins === 1 ? '' : 's'}.` : ''}`}>
+                        <span className="inline-flex items-center gap-1.5">
+                          {r.last_message_at && Date.now() - new Date(r.last_message_at) < 15 * 60 * 1000
+                            && <span className="h-2 w-2 animate-pulse rounded-full bg-good-500" title="Messaged in the last 15 minutes" />}
+                          <span className="font-semibold text-ink">{count(r.messages)}</span>
+                          <span className="text-2xs text-muted">· {ago(r.last_message_at)}</span>
+                        </span>
+                      </Hint>
+                    ) : <span className="text-muted">—</span>}
+                    {WA_STATUS[r.wa_status] && (
+                      <div className="mt-0.5"><Chip tone={WA_STATUS[r.wa_status][1]}>{WA_STATUS[r.wa_status][0]}</Chip></div>
+                    )}
+                    {/* Came back after STOP (user, 2026-10-02): when, how, and why they had stopped. */}
+                    {r.came_back && (
+                      <Hint note={`Said STOP ${r.times_stopped > 1 ? `${r.times_stopped} times, last ` : ''}${ago(r.stopped_at)}${r.earlier_reason ? ` — “${r.earlier_reason}”` : ''}. Messages on again ${ago(r.came_back.at)} by ${r.came_back.how === 'Undo' ? 'tapping Undo' : 'replying START'}.`}>
+                        <div className="mt-0.5"><Chip tone="good">↩ Back via {r.came_back.how} · {ago(r.came_back.at)}</Chip></div>
+                      </Hint>
+                    )}
+                    {/* Why they said STOP, if they answered (user, 2026-10-02). */}
+                    {r.wa_status === 'stopped' && (
+                      <Hint note={r.stop_said ? `In their words: “${r.stop_said}”` : r.stop_reason ? 'Their answer to “May we ask why?” after STOP.' : 'They did not answer “May we ask why?”.'}>
+                        <div className={`mt-0.5 max-w-[11rem] truncate text-2xs ${r.stop_reason ? 'font-semibold text-wrong-700' : 'text-muted'}`}>
+                          Why: {r.stop_reason || 'no answer'}{r.stop_said ? ` — “${r.stop_said}”` : ''}
                         </div>
-                      </td>
-                      <td className="td"><SourceChip source={c.source} /><div className="mt-1 text-2xs text-muted">{placeOf(c.place)}</div></td>
-                      <td className="td tabular">{num(c.vehicles)}{c.watching ? <div className="text-2xs text-muted">{c.watching} watched</div> : null}</td>
-                      <td className="td tabular">{c.paid ? <span className="font-semibold text-good-700">{c.paid} · {rupees(c.revenue_paise)}</span> : <span className="text-muted">—</span>}</td>
-                      <td className="td whitespace-nowrap text-2xs text-muted">{dateTime(c.first_at)}</td>
-                    </tr>
-                  );
-                })}
-              </Table>
-            </>
-          ) : null}
-        </State>
+                      </Hint>
+                    )}
+                  </td>
+                  <td className="td text-2xs">
+                    <Hint note="Where they first came from: a website visit's source, a WhatsApp ad, or straight to the WhatsApp number.">
+                      <span className="text-body">{String(r.first_source || '—').replace(/_/g, ' ')}</span>
+                    </Hint>
+                    {r.pay_failed && <div className="mt-0.5"><Chip tone="watch">Unfinished payment</Chip></div>}
+                  </td>
+                  <td className="td text-2xs text-muted">
+                    <Hint note={dateTime(r.last_seen_at)}>
+                      <span>{ago(r.last_seen_at)}</span>
+                    </Hint>
+                  </td>
+                  <td className="td">
+                    <div className="flex flex-wrap gap-1">
+                      {r.blocked && <Chip tone="wrong">Blocked</Chip>}
+                      {r.is_paused && <Chip tone="watch">Paused</Chip>}
+                      {r.active && <Hint note="Vehicle alerts (daily updates) are running from a report. Not the same as chatting now — see the WhatsApp column for that."><Chip tone="good">🔔 Alerts on{r.alerts_until ? ` · until ${date(r.alerts_until)}` : ''}</Chip></Hint>}
+                      {r.is_internal && <Chip tone="brand">Internal</Chip>}
+                    </div>
+                  </td>
+                  <td className="td text-2xs">
+                    {r.place ? (
+                      <Hint right note={`${SOURCE[r.place.source]?.[1] || ''}${r.place.vehicle_state && r.place.vehicle_state !== r.place.state ? ` Their vehicle is registered in ${r.place.vehicle_state}.` : ''}`}>
+                        <div className="font-semibold text-ink">{r.place.state}</div>
+                        <div className="text-muted">{r.place.city ? `${r.place.city} · ` : ''}{SOURCE[r.place.source]?.[0]}</div>
+                      </Hint>
+                    ) : <span className="text-muted">—</span>}
+                  </td>
+                </tr>
+              ))}
+            </Table>
+          )}
+        {data && <Pager page={page} total={data.total} onPage={setPage} />}
       </div>
-    </>
+
+      {openId && <CustomerDetail id={openId} onClose={() => setOpenId(null)} onChanged={load} />}
+    </Shell>
+  );
+}
+
+/* ------------------------------------------------------------ one person */
+
+function CustomerDetail({ id, onClose, onChanged }) {
+  const { can } = useSession();
+  const [data, setData] = useState(null);
+  const [error, setError] = useState(null);
+  const [tab, setTab] = useState('vehicles');
+  const [busy, setBusy] = useState(false);
+  const [openVehicle, setOpenVehicle] = useState(null);
+
+  const load = useCallback(async () => {
+    try { setData(await api.customer(id)); } catch (e) { setError(e); }
+  }, [id]);
+  useEffect(() => { load(); }, [load]);
+  useAutoRefresh(load);
+
+  const pause = async (paused) => {
+    setBusy(true);
+    try { await api.pauseCustomer(id, paused); await load(); onChanged?.(); }
+    catch (e) { setError(e); } finally { setBusy(false); }
+  };
+
+  const block = async () => {
+    const reason = window.prompt('Why is this number being blocked? (recorded against your name)');
+    if (reason === null) return;
+    setBusy(true);
+    try { await api.block('mobile', data.user.mobile, reason); await load(); onChanged?.(); }
+    catch (e) { setError(e); } finally { setBusy(false); }
+  };
+
+  const u = data?.user;
+  const TABS = [
+    ['vehicles', 'Vehicles', data?.vehicles.length],
+    ['payments', 'Payments', data?.payments.length],
+    ['documents', 'Documents', (data?.reports.length || 0) + (data?.invoices.length || 0)],
+    ['chat', 'Conversation', data?.messages.length],
+    ['signins', 'Sign-ins & visits', data?.visits?.sign_ins],
+    ['trail', 'Devices & consent', (data?.devices.length || 0) + (data?.consent.length || 0)],
+  ];
+
+  return (
+    <Modal wide busy={busy} onClose={onClose}
+      title={u ? (u.wa_profile_name || 'Unknown') : 'Customer'}
+      subtitle={u ? `${fmtMobile(u.mobile)} · joined ${date(u.created_at)} · last seen ${ago(u.last_seen_at)}` : ''}
+      footer={u && (
+        <>
+          {allowed(can, 'block') && (
+            <>
+              <button className="btn-quiet" disabled={busy} onClick={() => pause(!u.is_paused)}>
+                {u.is_paused ? 'Resume alerts' : 'Pause alerts'}
+              </button>
+              {!u.blocked && (
+                <button className="btn-danger" disabled={busy} onClick={block}>Block this number</button>
+              )}
+            </>
+          )}
+        </>
+      )}>
+
+      {error ? <Failed error={error} onRetry={load} />
+        : !data ? <Spinner />
+        : (
+          <>
+            {u.blocked && <Banner tone="wrong">This number is blocked. GaadiPe does not answer it and sends it nothing.</Banner>}
+            {u.is_paused && <Banner tone="watch">Alerts are paused for this customer.</Banner>}
+
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+              <Mini label="Paid" value={rupees(data.totals.paid_paise)}
+                note="Every captured payment, GST included." />
+              <Mini label="Refunded" value={rupees(data.totals.refunded_paise)} />
+              <Mini label="ULIP calls" value={count(data.totals.ulip_calls)}
+                note="Live lookups this customer has cost us. Free today." />
+              <Mini label="Vehicles" value={count(data.vehicles.length)} />
+            </div>
+
+            <div className="flex flex-wrap gap-1 border-b border-line">
+              {TABS.map(([key, label, n]) => (
+                <button key={key} onClick={() => setTab(key)}
+                  className={`-mb-px border-b-2 px-3 py-2 text-sm ${
+                    tab === key ? 'border-brand font-semibold text-brand-deep' : 'border-transparent text-muted hover:text-body'}`}>
+                  {label}{typeof n === 'number' ? ` (${n})` : ''}
+                </button>
+              ))}
+            </div>
+
+            {tab === 'vehicles' && (
+              data.vehicles.length ? (
+                <div className="space-y-2">
+                  {data.vehicles.map((v) => (
+                    <VehicleRow key={v.id} v={v} open={openVehicle === v.id}
+                      onToggle={() => setOpenVehicle(openVehicle === v.id ? null : v.id)} />
+                  ))}
+                </div>
+              ) : <Empty>No vehicles checked yet.</Empty>
+            )}
+
+            {tab === 'payments' && (
+              data.payments.length ? (
+                <Table head={<tr><th className="th">When</th><th className="th">Plan</th><th className="th">Vehicle</th><th className="th">Amount</th><th className="th">Status</th></tr>}>
+                  {data.payments.map((p) => (
+                    <tr key={p.id}>
+                      <td className="td text-2xs text-muted">{dateTime(p.paid_at || p.created_at)}</td>
+                      <td className="td">{p.plan_name || '—'}</td>
+                      <td className="td"><span className="plate">{plate(p.reg_no)}</span></td>
+                      <td className="td tabular font-semibold">{rupees(p.amount_paise)}</td>
+                      <td className="td">
+                        <Hint note={p.payment_id ? `Razorpay ${p.payment_id}${p.order_id ? ` · order ${p.order_id}` : ''}` : 'Never completed — the link was sent but no money arrived.'}>
+                          <Chip tone={p.status === 'paid' ? 'good' : p.status === 'refunded' ? 'wrong' : 'watch'}>{p.status}</Chip>
+                        </Hint>
+                      </td>
+                    </tr>
+                  ))}
+                </Table>
+              ) : <Empty>No payments.</Empty>
+            )}
+
+            {tab === 'documents' && <Documents reports={data.reports} invoices={data.invoices} can={can} />}
+
+            {tab === 'chat' && (
+              data.messages.length ? (
+                <div className="max-h-[50vh] space-y-2 overflow-y-auto pr-1">
+                  {[...data.messages].reverse().map((m, i) => (
+                    <div key={i} className={`flex ${m.direction === 'out' ? 'justify-end' : 'justify-start'}`}>
+                      <div className={`max-w-[80%] rounded-lg px-3 py-2 text-sm ${
+                        m.direction === 'out' ? 'bg-brand/8 text-ink' : 'bg-shell text-body'}`}>
+                        <div className="whitespace-pre-wrap break-words">{m.body || `[${m.message_type}]`}</div>
+                        <div className="mt-1 text-2xs text-muted">
+                          {dateTime(m.created_at)}
+                          {m.template_name ? ` · template ${m.template_name}` : ''}
+                          {m.error_message ? ` · failed: ${m.error_message}` : ''}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : <Empty>No messages.</Empty>
+            )}
+
+            {tab === 'signins' && <SignInHistory data={data} />}
+
+            {tab === 'trail' && (
+              <div className="space-y-4">
+                <div>
+                  <h3 className="mb-2 text-2xs font-semibold uppercase tracking-wider text-muted">Devices seen</h3>
+                  {data.devices.length ? (
+                    <Table head={<tr><th className="th">When</th><th className="th">Device</th><th className="th">IP</th><th className="th">Channel</th></tr>}>
+                      {data.devices.map((d, i) => (
+                        <tr key={i}>
+                          <td className="td text-2xs text-muted">{dateTime(d.created_at)}</td>
+                          <td className="td">
+                            <Hint note={d.user_agent || 'No user agent recorded.'}>
+                              <span className="border-b border-dotted border-muted/40">{d.device || 'Unknown device'}</span>
+                            </Hint>
+                          </td>
+                          <td className="td tabular text-2xs">{d.ip || '—'}</td>
+                          <td className="td text-2xs capitalize">{d.channel}</td>
+                        </tr>
+                      ))}
+                    </Table>
+                  ) : (
+                    <p className="text-sm text-muted">
+                      Nothing recorded. WhatsApp gives no device or IP — only the checkout page does,
+                      so a customer who has never paid has no device trail.
+                    </p>
+                  )}
+                </div>
+
+                <div>
+                  <h3 className="mb-2 text-2xs font-semibold uppercase tracking-wider text-muted">Consent</h3>
+                  {data.consent.length ? (
+                    <ul className="space-y-1 text-sm">
+                      {data.consent.map((c, i) => (
+                        <li key={i} className="text-body">
+                          {dateTime(c.created_at)} — agreed as <b>{c.detail.role}</b> to{' '}
+                          {(c.detail.documents || []).join(', ')}
+                          <span className="text-muted"> (version {c.detail.policy_version})</span>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : <p className="text-sm text-muted">No agreement recorded.</p>}
+                </div>
+
+                {data.feedback.length > 0 && (
+                  <div>
+                    <h3 className="mb-2 text-2xs font-semibold uppercase tracking-wider text-muted">Feedback</h3>
+                    <ul className="space-y-2">
+                      {data.feedback.map((f) => (
+                        <li key={f.id} className="rounded-lg border border-line bg-shell/60 px-3 py-2 text-sm">
+                          <div className="whitespace-pre-wrap">{f.body}</div>
+                          <div className="mt-1 text-2xs text-muted">{dateTime(f.created_at)}{f.reg_no ? ` · ${plate(f.reg_no)}` : ''}</div>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </div>
+            )}
+          </>
+        )}
+    </Modal>
+  );
+}
+
+/* A vehicle, opening into its full record — the accordion the panel is read by. */
+function VehicleRow({ v, open, onToggle }) {
+  const docs = [
+    ['Insurance', v.insurance_upto], ['PUC', v.pucc_upto], ['Fitness', v.fitness_upto],
+    ['Road tax', v.tax_upto], ['Permit', v.permit_upto],
+  ].filter(([, d]) => d);
+
+  const worst = docs
+    .map(([label, d]) => ({ label, d, days: daysTo(d) }))
+    .sort((a, b) => a.days - b.days)[0];
+
+  return (
+    <div className="rounded-lg border border-line">
+      <button className="flex w-full items-center justify-between gap-3 px-3 py-2.5 text-left transition hover:bg-shell/70"
+        onClick={onToggle}>
+        <div className="min-w-0">
+          <span className="plate">{plate(v.reg_no)}</span>
+          <span className="ml-2 text-2xs text-muted">
+            {[v.maker, v.model].filter(Boolean).join(' ') || 'Unknown vehicle'}
+          </span>
+        </div>
+        <div className="flex shrink-0 items-center gap-1.5">
+          {v.blocked && <Chip tone="wrong">Blocked</Chip>}
+          {v.watched && <Chip tone="good">Watched</Chip>}
+          {worst && (
+            <Chip tone={worst.days < 0 ? 'wrong' : worst.days <= 30 ? 'watch' : 'info'}>
+              {worst.label} {worst.days < 0 ? 'expired' : `in ${worst.days}d`}
+            </Chip>
+          )}
+          <span className="text-muted">{open ? '▴' : '▾'}</span>
+        </div>
+      </button>
+
+      {open && (
+        <div className="border-t border-line px-3 py-3 text-sm">
+          <div className="grid gap-x-6 gap-y-1.5 sm:grid-cols-2">
+            <Pair label="Class" value={v.vehicle_class} />
+            <Pair label="Fuel" value={v.fuel} />
+            <Pair label="RC status" value={v.rc_status} />
+            <Pair label="Owner serial" value={v.owner_serial ? `${v.owner_serial}` : null} />
+            <Pair label="Financer" value={v.financer || 'Not financed'} />
+            <Pair label="Blacklist" value={v.blacklist_status || 'None recorded'} />
+            <Pair label="Checked" value={`${count(v.check_count)} times · last ${ago(v.last_checked_at)}`} />
+            <Pair label="Watched until" value={v.watched_until ? date(v.watched_until) : 'Not watched'} />
+          </div>
+
+          <div className="mt-3 flex flex-wrap gap-1.5">
+            {docs.map(([label, d]) => {
+              const days = daysTo(d);
+              return (
+                <Hint key={label} note={`${label} valid until ${date(d)} — ${days < 0 ? `expired ${Math.abs(days)} days ago` : `${days} days left`}`}>
+                  <Chip tone={days < 0 ? 'wrong' : days <= 30 ? 'watch' : 'good'}>
+                    {label} {date(d)}
+                  </Chip>
+                </Hint>
+              );
+            })}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function Documents({ reports, invoices, can }) {
+  const [busy, setBusy] = useState(null);
+
+  const open = async (kind, id, download) => {
+    setBusy(`${kind}${id}`);
+    try {
+      const { blob, filename } = kind === 'report'
+        ? await api.reportPdf(id, download) : await api.invoicePdf(id, download);
+      download ? saveBlob(blob, filename) : openBlob(blob);
+    } catch (e) {
+      window.alert(e.message);
+    } finally { setBusy(null); }
+  };
+
+  return (
+    <div className="space-y-4">
+      <div>
+        <h3 className="mb-2 text-2xs font-semibold uppercase tracking-wider text-muted">Reports</h3>
+        {reports.length ? (
+          <Table head={<tr><th className="th">Number</th><th className="th">Vehicle</th><th className="th">Issued</th><th className="th">Download until</th><th className="th"></th></tr>}>
+            {reports.map((r) => (
+              <tr key={r.id}>
+                <td className="td font-mono text-2xs">{r.report_number}</td>
+                <td className="td"><span className="plate">{plate(r.reg_no)}</span></td>
+                <td className="td text-2xs text-muted">{dateTime(r.created_at)}</td>
+                <td className="td text-2xs">
+                  {r.valid_until
+                    ? <Chip tone={daysTo(r.valid_until) >= 0 ? 'good' : 'info'}>{date(r.valid_until)}</Chip>
+                    : <span className="text-muted">—</span>}
+                </td>
+                <td className="td">
+                  <DocButtons disabled={!r.has_pdf} busy={busy === `report${r.id}`}
+                    onView={() => open('report', r.id, false)} onSave={() => open('report', r.id, true)} />
+                </td>
+              </tr>
+            ))}
+          </Table>
+        ) : <Empty>No reports.</Empty>}
+      </div>
+
+      {allowed(can, 'money') && (
+        <div>
+          <h3 className="mb-2 text-2xs font-semibold uppercase tracking-wider text-muted">Invoices</h3>
+          {invoices.length ? (
+            <Table head={<tr><th className="th">Number</th><th className="th">Date</th><th className="th">Taxable</th><th className="th">GST</th><th className="th">Total</th><th className="th"></th></tr>}>
+              {invoices.map((i) => (
+                <tr key={i.id}>
+                  <td className="td font-mono text-2xs">{i.invoice_number}</td>
+                  <td className="td text-2xs text-muted">{date(i.invoice_date)}</td>
+                  <td className="td tabular">{rupees(i.base_paise, { decimals: true })}</td>
+                  <td className="td tabular">
+                    <Hint note={i.igst_paise ? `IGST ${rupees(i.igst_paise, { decimals: true })} — outside Karnataka` : `CGST ${rupees(i.cgst_paise, { decimals: true })} + SGST ${rupees(i.sgst_paise, { decimals: true })}`}>
+                      <span className="border-b border-dotted border-muted/40">
+                        {rupees(i.total_paise - i.base_paise, { decimals: true })}
+                      </span>
+                    </Hint>
+                  </td>
+                  <td className="td tabular font-semibold">{rupees(i.total_paise, { decimals: true })}</td>
+                  <td className="td">
+                    <DocButtons disabled={!i.has_pdf} busy={busy === `invoice${i.id}`}
+                      onView={() => open('invoice', i.id, false)} onSave={() => open('invoice', i.id, true)} />
+                  </td>
+                </tr>
+              ))}
+            </Table>
+          ) : <Empty>No invoices.</Empty>}
+        </div>
+      )}
+    </div>
+  );
+}
+
+const DocButtons = ({ onView, onSave, disabled, busy }) => (
+  <div className="flex gap-1.5">
+    <button className="btn-quiet !px-2.5 !py-1 text-2xs" disabled={disabled || busy} onClick={onView}>
+      {busy ? '…' : 'View'}
+    </button>
+    <button className="btn-quiet !px-2.5 !py-1 text-2xs" disabled={disabled || busy} onClick={onSave}>Save</button>
+  </div>
+);
+
+const Mini = ({ label, value, note }) => (
+  <Hint note={note}>
+    <div className="rounded-lg border border-line bg-shell/60 px-3 py-2">
+      <div className="text-2xs uppercase tracking-wider text-muted">{label}</div>
+      <div className="tabular text-base font-semibold text-ink">{value}</div>
+    </div>
+  </Hint>
+);
+
+const Pair = ({ label, value }) => (
+  <div className="flex justify-between gap-3 border-b border-line/60 py-1">
+    <span className="text-2xs uppercase tracking-wider text-muted">{label}</span>
+    <span className="text-right text-sm text-ink">{value || '—'}</span>
+  </div>
+);
+
+/*
+ * Everything this person did to sign in (user, 2026-09-18): each step with its
+ * device and network, and every device they have used, first and last seen.
+ */
+function SignInHistory({ data }) {
+  const [open, setOpen] = useState(null);
+  const [page, setPage] = useState(1);
+  const rows = data.sign_ins || [];
+  const devices = Object.values(rows.reduce((m, r) => {
+    const k = r.device_id || `ua:${r.user_agent || '?'}`;
+    const d = m[k] || (m[k] = { key: k, device_id: r.device_id, described: r.described, first: r.created_at, last: r.created_at, ips: new Set(), numbers: new Set(), sign_ins: 0, failures: 0 });
+    if (new Date(r.created_at) < new Date(d.first)) d.first = r.created_at;
+    if (new Date(r.created_at) > new Date(d.last)) { d.last = r.created_at; d.described = r.described || d.described; }
+    if (r.ip) d.ips.add(r.ip);
+    if (r.mobile) d.numbers.add(r.mobile);
+    if (r.event === 'signed_in') d.sign_ins += 1;
+    if (r.event === 'sign_in_failed' || r.event === 'code_refused') d.failures += 1;
+    return m;
+  }, {}));
+  const sessions = data.sessions || [];
+  const [spage, setSpage] = useState(1);
+  if (!rows.length && !sessions.length) return <Empty>No sign-in activity on the website yet.</Empty>;
+  return (
+    <div className="space-y-4">
+      <VisitSummary v={data.visits} />
+      <div>
+        <h3 className="mb-2 text-2xs font-semibold uppercase tracking-wider text-muted">Visits ({sessions.length}) — when, how long, how it ended</h3>
+        <div className="rounded-lg border border-line">
+          <SessionsTable rows={sessions.slice((spage - 1) * PAGE_SIZE, spage * PAGE_SIZE)} />
+          <Pager page={spage} total={sessions.length} onPage={setSpage} />
+        </div>
+      </div>
+      <div>
+        <h3 className="mb-2 text-2xs font-semibold uppercase tracking-wider text-muted">Devices used ({devices.length})</h3>
+        <Table head={<tr><th className="th">Device</th><th className="th">First seen</th><th className="th">Last seen</th><th className="th">Sign-ins</th><th className="th">Failed</th><th className="th">IPs</th><th className="th">Numbers</th></tr>}>
+          {devices.map((d) => (
+            <tr key={d.key}>
+              <td className="td">{d.described || 'Unknown device'}<div className="font-mono text-2xs text-muted">{d.device_id || 'no device id'}</div></td>
+              <td className="td text-2xs">{dateTime(d.first)}</td>
+              <td className="td text-2xs">{dateTime(d.last)}</td>
+              <td className="td tabular">{d.sign_ins}</td>
+              <td className={`td tabular ${d.failures ? 'font-semibold text-wrong-700' : ''}`}>{d.failures}</td>
+              <td className="td font-mono text-2xs">{[...d.ips].join(', ')}</td>
+              <td className={`td tabular text-2xs ${d.numbers.size > 1 ? 'font-semibold text-wrong-700' : ''}`}>{[...d.numbers].map(fmtMobile).join(', ')}</td>
+            </tr>
+          ))}
+        </Table>
+      </div>
+      <div>
+        <h3 className="mb-2 text-2xs font-semibold uppercase tracking-wider text-muted">Every step ({rows.length})</h3>
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[820px] text-sm">
+            <tbody className="divide-y divide-line">
+              {rows.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE).map((r, i) => (
+                <SignInRow key={r.id} r={r} i={i} showNumber onOpen={() => setOpen(r)} />
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <Pager page={page} total={rows.length} onPage={setPage} />
+      </div>
+      {open && <SignInDetail r={open} onClose={() => setOpen(null)} />}
+    </div>
   );
 }
