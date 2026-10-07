@@ -111,9 +111,8 @@ export default function Layout({ children }) {
           className={`chip hidden xl:inline-flex ${mon.global === 'off' ? 'bg-wrong-50 text-wrong-700' : 'bg-shell text-ink'}`}>
           MONITORING: {mon.global === 'off' ? 'GLOBAL OFF' : mon.controls?.length ? `ACTIVE · ${mon.controls.length} paused` : 'ACTIVE'}
         </button>) : null}
-      <span className={`chip hidden lg:inline-flex ${liveChip[1]}`} title={`Website stream: last word ${staleFor}s ago`}>
-        {liveChip[0] === 'LIVE' ? <span className="live-dot h-1.5 w-1.5 rounded-full bg-good-500" /> : null}{liveChip[0]}
-      </span>
+      {/* The main panel's own LIVE light sits next to these; this one speaks only when the website stream is not live. */}
+      {liveChip[0] !== 'LIVE' ? <span className={`chip hidden lg:inline-flex ${liveChip[1]}`} title={`Website stream: last word ${staleFor}s ago`}>{liveChip[0]}</span> : null}
     </>
   );
   const tabs = (

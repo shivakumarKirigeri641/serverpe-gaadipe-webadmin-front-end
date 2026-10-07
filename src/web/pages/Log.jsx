@@ -98,7 +98,11 @@ function LiveFeed() {
           <button key={k} onClick={() => setG(k)} className={`chip shrink-0 border !px-2.5 !py-1 ${g === k ? 'border-brand bg-brand text-white' : 'border-line bg-white text-body'}`}>{l}</button>))}
         <button onClick={() => setPaused((v) => !v)} className="btn-quiet ml-auto !px-3 !py-1 text-2xs">{paused ? '▶ Resume' : '⏸ Pause'}</button>
       </div>
-      <p className="mt-1 text-2xs text-muted">{conn.mode === 'poll' ? 'This browser cannot stream — use History.' : `Live since this page opened · ${rows.length} event${rows.length === 1 ? '' : 's'}${paused ? ' · paused' : ''}`}</p>
+      <p className="mt-1 text-2xs text-muted">
+        {conn.mode === 'poll' ? 'This browser cannot stream — the list below refreshes every 20 seconds.'
+          : conn.state === 'live' ? `● Connected · live since this page opened · ${rows.length} new event${rows.length === 1 ? '' : 's'}${paused ? ' · paused' : ''}`
+            : 'Connecting to the live stream… (the list below still refreshes every 20 seconds)'}
+      </p>
       <ol className="card mt-2 divide-y divide-line">
         {rows.length ? rows.map((i) => {
           const [icon, text, sub] = sayLive(i);
@@ -109,7 +113,33 @@ function LiveFeed() {
               <span className="min-w-0 flex-1 text-sm"><span className={i.ok === false ? 'font-semibold text-wrong-700' : 'text-ink'}>{text}</span>
                 {sub ? <span className="block break-words text-2xs text-muted">{sub}</span> : null}</span>
             </li>);
-        }) : <li className="px-4 py-8 text-center text-sm text-muted">Waiting for the next event…</li>}
+        }) : <li className="px-4 py-4 text-center text-sm text-muted">No new event since this page opened — the latest ones are below.</li>}
+      </ol>
+      <Earlier />
+    </>
+  );
+}
+
+/* EARLIER TODAY (2026-10-07: "Event stream always says waiting"). The live feed
+   only holds what arrives after the page opens; this keeps the screen useful on a
+   quiet hour — today's latest 40, refreshed every 20 seconds. */
+function Earlier() {
+  const { data } = useLoad((quiet) => api.log({ range: 'today', limit: 40 }, quiet), [], { everyMs: 20000 });
+  if (!data?.rows?.length) return null;
+  return (
+    <>
+      <h2 className="mt-4 text-2xs font-semibold uppercase tracking-wider text-muted">Earlier today</h2>
+      <ol className="card mt-1.5 divide-y divide-line">
+        {data.rows.map((r, i) => {
+          const [icon, text, sub] = say(r);
+          return (
+            <li key={`${r.kind}-${r.ref}-${i}`} className={`flex gap-3 px-4 py-2 ${!r.ok ? 'bg-wrong-50/60' : ''}`}>
+              <span className="tabular w-16 shrink-0 pt-0.5 text-2xs text-muted" title={dateTime(r.at)}>{time(r.at)}</span>
+              <span className="w-5 shrink-0 text-center">{icon}</span>
+              <span className="min-w-0 flex-1 text-sm"><span className={r.ok ? 'text-ink' : 'font-semibold text-wrong-700'}>{text}</span>
+                {sub ? <span className="block break-words text-2xs text-muted">{sub}</span> : null}</span>
+            </li>);
+        })}
       </ol>
     </>
   );
