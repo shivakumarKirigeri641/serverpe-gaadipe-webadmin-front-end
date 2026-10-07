@@ -10,22 +10,22 @@ import { SERIES, STATUS, AXIS, GRID, inr, Stats } from './kit.jsx';
  * TODAY, LIVE (user, 2026-10-06: "today's timeline — customers, vehicle checks
  * failed or success, full reports and more — in one graph, every minute").
  * Back end: src/admin/graphs.js today(). One chart: checks as stacked bars
- * (found / not found / failed), people saying hi, ₹19 taps, paid reports and
- * STOPs as lines. Asks again every minute; a tap on a legend item hides it.
+ * (found / not found / failed), website visits, sign-ins and paid reports
+ * as lines. Asks again every minute; a tap on a legend item hides it.
  */
 const KEYS = [
   ['checked', 'Checks — found', STATUS.ok, 'bar'],
   ['not_found', 'Checks — no such vehicle', STATUS.neutral, 'bar'],
   ['failed', 'Checks — failed (services down)', STATUS.failed, 'bar'],
-  ['hi', 'Said hi', SERIES[0], 'line'],
-  ['tapped', 'Tapped ₹19', SERIES[3], 'line'],
+  // The website (2026-10-07: WhatsApp is retired) — visits, sign-ins and paid reports as lines.
+  ['visits', 'Website visits', SERIES[0], 'line'],
+  ['sign_ins', 'Sign-ins', SERIES[3], 'line'],
   ['paid', 'Full reports paid', SERIES[6], 'line'],
-  ['stops', 'Said STOP', SERIES[4], 'line'],
 ];
 const WINDOWS = [['hour', 'Last 60 min'], ['three', 'Last 3 hours'], ['today', 'Today']];
 const STEP = {
-  hi: ['👋', 'said hi'], basic_shown: ['✅', 'checked'], buy_tapped: ['👆', 'tapped ₹19'],
-  opt_out: ['✋', 'said STOP'], paid: ['💰', 'paid'],
+  checked: ['✅', 'checked a vehicle'], not_found: ['❔', 'checked — no such vehicle'], failed: ['⚠️', 'check failed (services down)'],
+  sign_in: ['🔐', 'signed in'], paid: ['💰', 'paid'],
 };
 const time = (iso) => new Date(iso).toLocaleTimeString('en-IN', { hour: 'numeric', minute: '2-digit', hour12: true }).replace(/\s+/g, ' ').toLowerCase();
 
@@ -75,19 +75,18 @@ export default function TodayLive() {
       {error && !data ? <Failed error={error} onRetry={load} /> : !data ? <Skeleton rows={8} /> : (
         <>
           <Stats items={[
-            ['Said hi', count(t.hi), 'people today'],
+            ['Visits', count(t.visits), 'website, today'],
             ['Checks', count(checks), `${count(t.checked)} found`],
             ['Failed', count(t.failed), t.not_found ? `+${count(t.not_found)} no such vehicle` : 'services down'],
-            ['Tapped ₹19', count(t.tapped), 'today'],
+            ['Sign-ins', count(t.sign_ins), 'today'],
             ['Paid', count(t.paid), inr(t.revenue_paise)],
-            ['STOP', count(t.stops), 'today'],
           ]} />
 
           <section className="card cv-rise p-5">
             <div className="flex flex-wrap items-start justify-between gap-2">
               <div>
                 <h2 className="text-sm font-semibold text-ink">{data.label} — every {data.bucket_minutes === 1 ? 'minute' : `${data.bucket_minutes} minutes`}</h2>
-                <p className="text-2xs text-muted">Bars: vehicle checks (found, no such vehicle, failed). Lines: people saying hi, ₹19 taps, paid reports, STOPs. Tap a name to hide or show it.</p>
+                <p className="text-2xs text-muted">Bars: vehicle checks (found, no such vehicle, failed). Lines: website visits, sign-ins and paid reports. Tap a name to hide or show it.</p>
               </div>
             </div>
             <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1">
@@ -124,9 +123,7 @@ export default function TodayLive() {
             {!data.feed.length ? <p className="mt-3 text-2xs text-muted">Nothing yet in this window.</p> : (
               <ul className="mt-2 divide-y divide-line/60">
                 {data.feed.map((f, i) => {
-                  const [icon, verb] = f.step === 'lookup_failed'
-                    ? (f.reason === 'not_found' ? ['❔', 'checked — no such vehicle'] : ['⚠️', 'check failed'])
-                    : STEP[f.step] || ['•', f.step];
+                  const [icon, verb] = STEP[f.step] || ['•', f.step];
                   return (
                     <li key={i} className="flex items-center gap-3 py-1.5 text-2xs">
                       <span className="w-16 shrink-0 tabular text-muted">{time(f.at)}</span>

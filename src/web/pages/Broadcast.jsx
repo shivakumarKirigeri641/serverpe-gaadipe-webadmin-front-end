@@ -41,8 +41,15 @@ export default function Broadcast() {
     <State loading={loading} error={error} onRetry={reload}>
       {data ? (
         <>
-          <h1 className="text-lg font-semibold">Broadcast — email</h1>
-          <p className="text-2xs text-muted">From noreply. Your own words, sent a few a minute. WhatsApp broadcasts are off while the account is disabled.</p>
+          <h1 className="text-lg font-semibold">Broadcast — email · RCS soon</h1>
+          <p className="text-2xs text-muted">From noreply. Your own words, sent a few a minute. RCS will be added once it is set up.</p>
+          {/* The broadcast's own switch (2026-10-07: "I switched it on, why is it off?" — it is this one). */}
+          <label className={`mt-2 flex flex-wrap items-center gap-3 rounded-lg px-3 py-2 text-sm ${data.write_enabled ? 'bg-good-50 text-good-700' : 'bg-wrong-50 text-wrong-700'}`}>
+            <input type="checkbox" className="h-4 w-4 accent-[#0f766e]" checked={Boolean(data.write_enabled)} disabled={!may || busy}
+              onChange={(e) => run(async () => { await api.saveSettings({ admin_customer_email_enabled: e.target.checked ? 'true' : 'false' }); reload(); })} />
+            <span><b>Write to customers</b> — {data.write_enabled ? 'on: broadcasts can be sent.' : 'off: nothing can be sent until this is ticked.'}</span>
+            <span className="text-2xs opacity-70">(setting admin_customer_email_enabled — separate from the automatic customer emails)</span>
+          </label>
           <div className="mt-3 grid grid-cols-2 gap-3 md:grid-cols-5">
             <Stat label="Confirmed emails" value={num(r?.confirmed)} sub="can receive a broadcast" tone={r?.confirmed ? 'good' : undefined} />
             <Stat label="Opted in to offers" value={num(r?.promo_ok)} sub="can receive promotions" />

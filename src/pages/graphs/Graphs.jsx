@@ -17,10 +17,10 @@ import TodayLive from './TodayLive.jsx';
  */
 const PAGES = {
   // Today, live (user, 2026-10-06): its own window and a minute's refresh, so no period picker.
-  today: ['Today live', 'Customers, checks found or failed, ₹19 taps and paid reports — minute by minute, updated every minute', TodayLive],
+  today: ['Today live', 'Website visits, vehicle checks found or failed, sign-ins and paid reports — minute by minute, updated every minute', TodayLive],
   overview: ['Overview', 'Customers, checks, full reports and revenue, day by day', Overview],
   funnel: ['Funnel', 'From the first “hi” to a paid report — and who stopped where', Funnel],
-  money: ['Money', 'Revenue and where it goes — GST, gateway, APIs, WhatsApp, ads', Money],
+  money: ['Money', 'Revenue and where it goes — GST, gateway, APIs, SMS, ads', Money],
   customers: ['Customers', 'New and returning, where they came from, STOP and why', CustomersG],
   vehicles: ['Vehicles', 'Which vehicles are checked — state, RTO, type, fuel, make — and what is expiring', VehiclesG],
   services: ['Services', 'The outside APIs — calls answered and failed, speed, RC backup spend', Services],
