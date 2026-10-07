@@ -39,7 +39,7 @@ export default function BusinessHealth() {
         <>
           <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-5">
             {data.metrics.map((m, i) => <MetricCard key={m.key} period={{ label: data.range.label, compare: data.compare?.label }}
-              m={m.key === 'net' ? { ...m, formula: 'Revenue (GST incl.)\n− GST\n− refunds (net of GST)\n− gateway fee + its GST\n− vehicle API cost\n− WhatsApp & SMS cost\n= Net contribution\n(no referral rewards: no programme)' } : m}
+              m={m.key === 'net' ? { ...m, formula: 'Revenue (GST incl.)\n− GST\n− refunds (net of GST)\n− gateway fee + its GST\n− vehicle API cost\n− SMS cost\n= Net contribution\n(no referral rewards: no programme)' } : m}
               delay={Math.min(4, Math.floor(i / 5) + 1)} />)}
             <div className="card px-4 py-3">
               <div className="text-2xs font-semibold uppercase tracking-wider text-muted">Contribution margin</div>
@@ -75,9 +75,9 @@ function TodaySummary({ s }) {
       <div className="grid divide-y divide-line md:grid-cols-2 md:divide-x md:divide-y-0 xl:grid-cols-5">
         <div className="p-4">
           <div className="mb-1 text-2xs font-semibold uppercase tracking-wider text-muted">Today</div>
-          {row('Visitors', num(t.visitors), '/journey')}
-          {row('Vehicle searches', num(t.searches), '/lookups')}
-          {row('WhatsApp chats', num(t.conversations), '/whatsapp')}
+          {row('Visitors', num(t.visitors), '/web/visitors')}
+          {row('Vehicle checks', num(t.searches), '/web/free-checks')}
+          {row('Sign-ins', num(t.sign_ins), '/web/customers')}
           {row('Reports', num(t.reports), '/documents')}
           {row('Paid reports', num(t.paid), '/profitability?tab=transactions&range=today')}
         </div>
@@ -87,7 +87,7 @@ function TodaySummary({ s }) {
           {row('GST', rs(t.gst), '/finance')}
           {row('Gateway cost', rs(t.gateway_cost), '/profitability?range=today')}
           {row('API cost', rs(t.api_cost), '/api-monitor')}
-          {row('Messaging cost', rs(t.whatsapp_cost), '/whatsapp')}
+          {row('SMS cost', rs(t.messaging_cost), '/profitability?range=today')}
           <div className="mt-1 border-t border-line pt-1">{row('Net contribution', rs(t.net), '/profitability?range=today')}</div>
         </div>
         <div className="p-4">

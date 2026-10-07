@@ -234,7 +234,7 @@ function Money({ m, compareLabel, onOpen }) {
     ['Gross collected', m.gross_paise, 'What customers paid, GST included.'],
     ['GST', -m.gst_paise, 'The GST inside the price, owed to the government.'],
     ['Payment gateway', -m.gateway_paise, 'Razorpay fee and the GST on it, at the rates in Settings.'],
-    ['WhatsApp messaging', -m.messaging_paise, 'Template messages sent, at the per-message rate in Settings.'],
+    ['SMS', -m.messaging_paise, 'Sign-in codes by SMS, at the rate in Settings.'],
     ['Records API', -m.api_cost_paise, 'Government-records calls, at the rates in Settings.'],
   ];
   const diff = m.previous_net_paise == null ? null : m.net_paise - m.previous_net_paise;
@@ -303,8 +303,8 @@ function LiveNow() {
         </div>
         <div className="mt-3 grid grid-cols-3 gap-3 sm:grid-cols-6">
           <Counter label="On the site" note="Browsers active on gaadipe.in in the last 5 minutes." v={c?.on_site} />
-          <Counter label="Chatting" note="People who sent a WhatsApp message in the last 15 minutes." v={c?.chatting} />
-          <Counter label="Lookups" note="Vehicle lookups in the last 15 minutes." v={c?.searches} />
+          <Counter label="Signing in" note="Customers who signed in on the website in the last 15 minutes." v={c?.signing_in} />
+          <Counter label="Checks" note="Vehicle checks on the website in the last 15 minutes." v={c?.searches} />
           <Counter label="Paying now" note="Payment links opened in the last 30 minutes, not yet paid." v={c?.paying_now} />
           <Counter label="Paid, last hour" note="Payments completed in the last 60 minutes." v={c?.paid_hour} />
           <Counter label="Errors, last hour" note="Records-API failures and reports that could not be delivered." v={c == null ? null : c.api_errors + c.delivery_errors} bad />
@@ -475,7 +475,7 @@ function MobileSummary({ data }) {
   const cells = [
     ['Revenue', inr(k.revenue_paise?.value)], ['Payments', num(k.paid?.value)],
     ['Reports', num(k.reports?.value)], ['Visitors', num(k.visitors?.value)],
-    ['WhatsApp', num(k.chatting?.value)], ['Net', inr(k.net_paise?.value)],
+    ['Checks', num(k.searches?.value)], ['Net', inr(k.net_paise?.value)],
   ];
   return (
     <div className="card mb-3 grid grid-cols-3 gap-2 p-3 md:hidden">
@@ -493,7 +493,7 @@ function MobileSummary({ data }) {
 
 const EXPORTS = [
   ['events', 'All events'], ['customers', 'Customers'], ['payments', 'Payments'],
-  ['searches', 'Vehicle lookups'], ['api', 'API usage'], ['whatsapp', 'WhatsApp messages'],
+  ['searches', 'Vehicle lookups'], ['api', 'API usage'],
 ];
 /* IST calendar day of an instant, as YYYY-MM-DD. */
 const istDay = (t) => new Date(new Date(t).getTime() + 330 * 60000).toISOString().slice(0, 10);
