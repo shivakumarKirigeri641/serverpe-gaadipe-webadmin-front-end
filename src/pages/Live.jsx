@@ -54,7 +54,7 @@ export default function Live() {
                 {rows.map((r) => (
                   <tr key={r.session_id} className="cursor-pointer hover:bg-shell/60" onClick={() => navigate(`/sessions/${encodeURIComponent(r.session_id)}`)}>
                     <td className="td">
-                      <div className="text-ink">{r.user_id ? (r.name || 'Customer') : 'Anonymous visitor'}{r.returning ? <span className="ml-1.5 chip bg-shell text-muted">returning</span> : null}</div>
+                      <div className="text-ink">{r.user_id ? (r.name || '-') : 'Anonymous visitor'}{r.returning ? <span className="ml-1.5 chip bg-shell text-muted">returning</span> : null}</div>
                       <div className="tabular text-2xs text-muted">{r.mobile || ''}</div>
                       <CopyId value={sessionCode(r.session_id, r.started_at)} />
                       {r.user_id ? <CopyId value={customerCode(r.user_id)} className="ml-2" /> : null}

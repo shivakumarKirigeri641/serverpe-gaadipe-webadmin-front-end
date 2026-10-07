@@ -38,7 +38,7 @@ export default function SessionRoom() {
             <div className="flex flex-wrap items-start gap-3">
               <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-center gap-2">
-                  <h1 className="text-lg font-semibold">{s.user_id ? (s.name || 'Customer') : 'Anonymous visitor'}</h1>
+                  <h1 className="text-lg font-semibold">{s.user_id ? (s.name || '-') : 'Anonymous visitor'}</h1>
                   <StatusChip status={now?.status || s.status} />
                   {s.returning ? <span className="chip bg-shell text-ink">returning · {s.earlier} earlier visit{s.earlier === 1 ? '' : 's'}</span> : <span className="chip bg-shell text-muted">first visit</span>}
                 </div>

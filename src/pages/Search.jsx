@@ -16,7 +16,7 @@ const GROUPS = [
 
 function line(group, x) {
   switch (group) {
-    case 'customers': return [x.name || 'Customer', `${x.mobile || ''}${x.paid ? ` · ${x.paid} paid` : ''}`, x.to || `/customers/${x.id}`];
+    case 'customers': return [x.name || '-', `${x.mobile || ''}${x.paid ? ` · ${x.paid} paid` : ''}`, x.to || `/customers/${x.id}`];
     case 'vehicles': return [x.reg_no, [x.maker, x.model].filter(Boolean).join(' ') || '', x.to || `/search?q=${x.reg_no}`];
     case 'reports': return [x.report_number || `Report ${x.id}`, `${x.reg_no || ''} · ${dateTime(x.created_at)}`, x.to || `/reports`];
     case 'payments': return [`GP-T-${x.id} · ${rupees(x.amount_paise)}`, `${x.status || ''} · ${x.mobile || ''} · ${dateTime(x.created_at)}`, x.to || '/payments'];

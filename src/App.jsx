@@ -11,6 +11,9 @@ import Privacy from './pages/Privacy.jsx';
 import Leads from './pages/Leads.jsx';
 import Insights from './pages/Insights.jsx';
 import Vehicles from './pages/Vehicles.jsx';
+import Broadcast from './pages/Broadcast.jsx';
+import Transfers from './pages/Transfers.jsx';
+import ServerLog from './pages/ServerLog.jsx';
 import Layout from './components/Layout.jsx';
 import SignIn from './pages/SignIn.jsx';
 import Overview from './pages/Overview.jsx';
@@ -70,6 +73,9 @@ export default function App() {
           <Route path="/insights" element={<Insights />} />
           <Route path="/vehicles" element={<Vehicles />} />
           <Route path="/vehicles/:reg" element={<Vehicles />} />
+          <Route path="/broadcast" element={<Broadcast />} />
+          <Route path="/transfers" element={<Transfers />} />
+          <Route path="/server-log" element={<ServerLog />} />
           <Route path="/search" element={<Search />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>

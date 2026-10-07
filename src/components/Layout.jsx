@@ -32,6 +32,7 @@ export const NAV = [
     ['/leads', 'Leads & drop-offs', '🔥'],
     ['/free-checks', 'Free checks', '🆓'],
     ['/vehicles', 'Vehicles', '🚗'],
+    ['/transfers', 'Transfers', '📱'],
   ]],
   ['Business', [
     ['/payments', 'Payments', '💳'],
@@ -46,8 +47,10 @@ export const NAV = [
     ['/health', 'System health', '🩺'],
     ['/alerts', 'Alerts', '🔔'],
     ['/audit', 'Audit log', '🗂️'],
+    ['/server-log', 'Server log', '🖥️'],
   ]],
   ['Admin', [
+    ['/broadcast', 'Broadcast (email)', '📣'],
     ['/emails', 'Emails to you', '✉️'],
     ['/admins', 'Admins', '🛡️', 'admins'],
     ['/privacy', 'Privacy & monitoring', '🛡'],

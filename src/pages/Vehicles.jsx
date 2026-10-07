@@ -50,7 +50,7 @@ export default function Vehicles() {
                 <Section title="Who checked it">
                   {data.customers.length ? (
                     <Table head={['Customer', 'Checks', 'Last']}>
-                      {data.customers.map((c) => <tr key={c.id}><td className="td"><Link className="text-ink hover:underline" to={`/customers/${c.id}`}>{c.name || 'Customer'}</Link><div className="tabular text-2xs text-muted">{c.mobile}</div></td><td className="td tabular">{num(c.check_count)}</td><td className="td text-2xs">{ago(c.last_checked_at)}</td></tr>)}
+                      {data.customers.map((c) => <tr key={c.id}><td className="td"><Link className="text-ink hover:underline" to={`/customers/${c.id}`}>{c.name || '-'}</Link><div className="tabular text-2xs text-muted">{c.mobile}</div></td><td className="td tabular">{num(c.check_count)}</td><td className="td text-2xs">{ago(c.last_checked_at)}</td></tr>)}
                     </Table>) : <div className="card px-4 py-4 text-sm text-muted">No signed-in customer has checked it.</div>}
                 </Section>
                 <Section title="Reports">

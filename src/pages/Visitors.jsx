@@ -47,7 +47,7 @@ export default function Visitors() {
                     <td className="td"><SourceChip source={v.source} />{v.campaign ? <div className="mt-1 max-w-[10rem] truncate text-2xs text-muted">{v.campaign}</div> : null}</td>
                     <td className="td tabular">{num(v.views)}</td>
                     <td className="td">{v.chat ? '💬' : ''}</td>
-                    <td className="td">{v.user_id ? <><div className="text-ink">{v.name || 'Customer'}</div><div className="tabular text-2xs text-muted">{v.mobile}{v.paid ? ` · ${v.paid} paid` : ''}</div></> : <span className="text-2xs text-muted">not signed in</span>}</td>
+                    <td className="td">{v.user_id ? <><div className="text-ink">{v.name || '-'}</div><div className="tabular text-2xs text-muted">{v.mobile}{v.paid ? ` · ${v.paid} paid` : ''}</div></> : <span className="text-2xs text-muted">not signed in</span>}</td>
                     <td className="td text-2xs">{placeOf(v.place)}</td>
                     <td className="td text-2xs">{deviceOf(v.device)}</td>
                   </tr>
@@ -79,7 +79,7 @@ function Trail({ id, onClose }) {
             <>
               <div className="mt-3 space-y-1 rounded-lg bg-shell px-3 py-2.5 text-sm">
                 <div><SourceChip source={v.source} /> {v.first_touch?.campaign ? <span className="text-2xs text-muted">· {v.first_touch.campaign}</span> : null}</div>
-                {v.user_id ? <div className="text-ink">{v.name || 'Customer'} · <span className="tabular">{v.mobile}</span></div> : <div className="text-2xs text-muted">Not signed in</div>}
+                {v.user_id ? <div className="text-ink">{v.name || '-'} · <span className="tabular">{v.mobile}</span></div> : <div className="text-2xs text-muted">Not signed in</div>}
                 <div className="text-2xs text-muted">{placeOf(v.place)} · {deviceOf(v.device)}</div>
                 <div className="text-2xs text-muted">First {dateTime(v.first_seen_at)} · landed on {v.first_touch?.landing || '—'}</div>
               </div>

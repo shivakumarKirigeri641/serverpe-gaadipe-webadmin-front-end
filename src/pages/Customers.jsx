@@ -83,7 +83,7 @@ export default function Customers() {
                   return (
                     <tr key={c.user_id} className="cursor-pointer hover:bg-shell/60" onClick={() => navigate(`/customers/${c.user_id}`)}>
                       <td className="td">
-                        <div className="flex items-center gap-1.5 text-ink">{c.name || 'Customer'}{c.is_new ? <span className="chip bg-good-50 text-good-700">new</span> : null}</div>
+                        <div className="flex items-center gap-1.5 text-ink">{c.name || '-'}{c.is_new ? <span className="chip bg-good-50 text-good-700">new</span> : null}</div>
                         <div className="tabular text-2xs text-muted">{c.mobile}{c.email ? ` · ${c.email}` : ''}</div>
                       </td>
                       <td className="td"><span className={`chip ${chCls}`}>{chLabel}</span>{c.wa_stop ? <div className="mt-1 text-2xs text-wrong-700">replied STOP</div> : null}</td>

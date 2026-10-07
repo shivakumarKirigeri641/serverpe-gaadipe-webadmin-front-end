@@ -82,7 +82,7 @@ export default function Payments() {
                 {list.data.rows.map((p) => (
                   <tr key={p.id}>
                     <td className="td whitespace-nowrap">{dateTime(p.paid_at || p.created_at)}</td>
-                    <td className="td"><div className="text-ink">{p.person_name || 'Customer'}</div><div className="tabular text-2xs text-muted">{p.mobile}</div></td>
+                    <td className="td"><div className="text-ink">{p.person_name || '-'}</div><div className="tabular text-2xs text-muted">{p.mobile}</div></td>
                     <td className="td plate">{p.reg_no || '—'}</td>
                     <td className="td tabular">{rupees(p.amount_paise)}</td>
                     <td className="td"><span className={`chip ${STATUS_CLS[p.status] || 'bg-shell text-muted'}`}>{p.status_label || p.status}</span>{p.had_failure ? <div className="text-2xs text-wrong-700">had a failed try</div> : null}</td>

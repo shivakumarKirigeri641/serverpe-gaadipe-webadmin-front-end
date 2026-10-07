@@ -37,7 +37,7 @@ export default function CustomerRoom() {
             <div className="flex flex-wrap items-start gap-3">
               <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-center gap-2">
-                  <h1 className="text-lg font-semibold">{c.name || 'Customer'}</h1>
+                  <h1 className="text-lg font-semibold">{c.name || '-'}</h1>
                   {now ? <StatusChip status={now.status} /> : <span className="chip bg-shell text-muted">○ Not on the site</span>}
                   {c.deactivated_at ? <span className="chip bg-wrong-50 text-wrong-700">Deactivated</span> : null}
                   {c.wa_messages ? <span className="chip bg-good-50 text-good-700">WhatsApp customer</span> : null}
@@ -104,10 +104,17 @@ export default function CustomerRoom() {
                 <p className="text-2xs text-muted">{num(data.open_sign_ins.length)} sign-in{data.open_sign_ins.length === 1 ? '' : 's'} still open (they stay signed in for up to a year unless signed out).</p>
               </div>) : null}
             {tab === 'vehicles' ? (
-              <Table head={['Vehicle', 'Make · model', 'Last checked', 'Full report', 'Watched']}>
+              <Table head={['Vehicle', 'Make · model', 'Type · fuel', 'Insurance', 'PUC', 'Tax', 'Fitness', 'Owner · loan', 'Report', 'Checked']}>
                 {data.vehicles.map((v) => (
-                  <tr key={v.reg_no}><td className="td plate">{v.reg_no}</td><td className="td text-2xs">{[v.maker, v.model].filter(Boolean).join(' · ') || '—'}</td><td className="td text-2xs">{ago(v.last_checked_at)}</td>
-                    <td className="td">{v.has_report ? '✓' : '—'}</td><td className="td">{v.watched ? '👁' : '—'}</td></tr>))}
+                  <tr key={v.reg_no}>
+                    <td className="td"><Link className="plate hover:underline" to={`/vehicles/${v.reg_no}`}>{v.reg_no}</Link>{v.watched ? <div className="text-2xs text-good-700">👁 watched</div> : null}</td>
+                    <td className="td text-2xs">{[v.maker, v.model].filter(Boolean).join(' · ') || '-'}</td>
+                    <td className="td text-2xs">{[v.vehicle_class, v.fuel].filter(Boolean).join(' · ') || '-'}</td>
+                    {['insurance_upto', 'pucc_upto', 'tax_upto', 'fitness_upto'].map((k) => <td key={k} className="td text-2xs"><DocDate d={v[k]} /></td>)}
+                    <td className="td text-2xs">{v.owner_serial != null ? `Owner ${v.owner_serial}` : '-'}{v.financed ? <div className="text-watch-700">loan</div> : null}{v.blacklist_status ? <div className="text-wrong-700">{v.blacklist_status}</div> : null}</td>
+                    <td className="td text-2xs">{v.has_report ? (v.report_valid_until && new Date(v.report_valid_until) > new Date() ? <span className="text-good-700">valid to {dateTime(v.report_valid_until)}</span> : 'bought') : '-'}</td>
+                    <td className="td text-2xs">{num(v.check_count)}× · {ago(v.last_checked_at)}</td>
+                  </tr>))}
               </Table>) : null}
             {tab === 'payments' ? (
               <div className="space-y-3">
@@ -128,6 +135,15 @@ export default function CustomerRoom() {
       ) : null}
     </State>
   );
+}
+
+/* A document's last date, coloured by how soon it runs out — words, not colour alone. */
+function DocDate({ d }) {
+  if (!d) return <span className="text-muted">-</span>;
+  const days = Math.floor((new Date(d) - Date.now()) / 86400e3);
+  const txt = new Date(d).toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata', day: '2-digit', month: 'short', year: 'numeric' });
+  return days < 0 ? <span className="font-semibold text-wrong-700">{txt} · expired</span>
+    : days <= 30 ? <span className="font-semibold text-watch-700">{txt} · {days} d left</span> : <span>{txt}</span>;
 }
 
 /* Internal notes on this customer (spec §40), shared with the main admin panel. */

@@ -144,7 +144,7 @@ function Funnel({ range, stage, onStage }) {
           <div className="card divide-y divide-line">
             {(people.data?.rows || []).length ? people.data.rows.map((p) => (
               <Link key={p.session_id} to={`/sessions/${encodeURIComponent(p.session_id)}`} className="flex flex-wrap items-center gap-3 px-4 py-2 text-sm hover:bg-shell">
-                <span className="min-w-[10rem] text-ink">{p.user_id ? (p.name || p.mobile || 'Customer') : 'Anonymous visitor'}</span>
+                <span className="min-w-[10rem] text-ink">{p.user_id ? (p.name || p.mobile || '-') : 'Anonymous visitor'}</span>
                 <SourceChip source={p.source || 'direct'} /><span className="text-2xs text-muted">reached at {dateTime(p.reached_at)} · got to “{p.last_stage}”</span>
                 <span className="ml-auto text-2xs text-brand">Open →</span>
               </Link>)) : <div className="px-4 py-4 text-sm text-muted">{people.loading ? 'Loading…' : 'Nobody here.'}</div>}

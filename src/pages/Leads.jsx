@@ -53,7 +53,7 @@ function LeadList() {
               <Table head={['Customer', 'Score', 'Signal', 'Why', 'Came from', 'Last seen']}>
                 {data.rows.map((l) => (
                   <tr key={l.user_id}>
-                    <td className="td"><Link className="text-ink hover:underline" to={`/customers/${l.user_id}`}>{l.name || 'Customer'}</Link><div className="tabular text-2xs text-muted">{l.mobile}</div></td>
+                    <td className="td"><Link className="text-ink hover:underline" to={`/customers/${l.user_id}`}>{l.name || '-'}</Link><div className="tabular text-2xs text-muted">{l.mobile}</div></td>
                     <td className="td tabular text-lg font-bold">{l.score}</td>
                     <td className="td"><span className={`chip ${BAND[l.band][1]}`}>{BAND[l.band][0]}</span><div className="mt-1 text-2xs text-muted">{l.intent} (signal)</div></td>
                     <td className="td max-w-[22rem] text-2xs text-muted">{l.why.join(' · ')}</td>
@@ -81,7 +81,7 @@ function Stuck() {
             <Table head={['Visitor', 'Status', 'Stuck on', 'Doing nothing for', 'Last action', 'Source']}>
               {data.rows.map((r) => (
                 <tr key={r.session_id}>
-                  <td className="td"><Link className="text-ink hover:underline" to={`/sessions/${encodeURIComponent(r.session_id)}`}>{r.user_id ? (r.name || 'Customer') : 'Anonymous visitor'}</Link>
+                  <td className="td"><Link className="text-ink hover:underline" to={`/sessions/${encodeURIComponent(r.session_id)}`}>{r.user_id ? (r.name || '-') : 'Anonymous visitor'}</Link>
                     <div className="font-mono text-2xs text-muted">{sessionCode(r.session_id, r.started_at)}</div></td>
                   <td className="td"><StatusChip status={r.status} /></td>
                   <td className="td text-sm">{stepWords(r.step)}<div className="text-2xs text-muted">{r.section || r.page}</div></td>
@@ -116,7 +116,7 @@ function Abandoned() {
                 {data.rows.map((r) => (
                   <tr key={r.session_id}>
                     <td className="td whitespace-nowrap text-2xs">{dateTime(r.last_seen_at)}</td>
-                    <td className="td"><Link className="text-ink hover:underline" to={`/sessions/${encodeURIComponent(r.session_id)}`}>{r.user_id ? (r.name || r.mobile || 'Customer') : 'Anonymous visitor'}</Link></td>
+                    <td className="td"><Link className="text-ink hover:underline" to={`/sessions/${encodeURIComponent(r.session_id)}`}>{r.user_id ? (r.name || r.mobile || '-') : 'Anonymous visitor'}</Link></td>
                     <td className="td"><span className={`chip ${r.kind === 'payment' ? 'bg-wrong-50 text-wrong-700' : 'bg-watch-50 text-watch-700'}`}>{r.label}</span></td>
                     <td className="td plate">{r.reg_no || '—'}</td>
                     <td className="td"><SourceChip source={r.source || 'direct'} /></td>

@@ -29,7 +29,7 @@ export default function Reports() {
                     <td className="td whitespace-nowrap text-2xs">{dateTime(r.created_at)}</td>
                     <td className="td font-mono text-2xs text-ink">{r.report_number}</td>
                     <td className="td plate">{r.reg_no}</td>
-                    <td className="td"><div className="text-ink">{r.requester_name || 'Customer'}</div><div className="tabular text-2xs text-muted">{r.mobile}</div></td>
+                    <td className="td"><div className="text-ink">{r.requester_name || '-'}</div><div className="tabular text-2xs text-muted">{r.mobile}</div></td>
                     <td className="td"><span className="chip bg-shell text-ink">{r.channel || '—'}</span></td>
                     <td className="td text-2xs">{new Date(r.valid_until) > new Date() ? dateTime(r.valid_until) : <span className="text-muted">ended</span>}</td>
                     <td className="td text-2xs">{r.has_pdf ? '✓' : '—'}</td>

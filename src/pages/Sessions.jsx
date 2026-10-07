@@ -35,7 +35,7 @@ export default function Sessions() {
                 {data.rows.map((s) => (
                   <tr key={s.session_id} className="cursor-pointer hover:bg-shell/60" onClick={() => navigate(`/sessions/${encodeURIComponent(s.session_id)}`)}>
                     <td className="td"><CopyId value={sessionCode(s.session_id, s.started_at)} /></td>
-                    <td className="td">{s.user_id ? <><div className="text-ink">{s.name || 'Customer'}</div><div className="tabular text-2xs text-muted">{s.mobile}</div></> : <span className="text-2xs text-muted">anonymous</span>}</td>
+                    <td className="td">{s.user_id ? <><div className="text-ink">{s.name || '-'}</div><div className="tabular text-2xs text-muted">{s.mobile}</div></> : <span className="text-2xs text-muted">anonymous</span>}</td>
                     <td className="td"><StatusChip status={s.status} /></td>
                     <td className="td whitespace-nowrap text-2xs">{dateTime(s.started_at)}<div className="text-muted">seen {ago(s.last_seen_at)}</div></td>
                     <td className="td tabular text-2xs">{duration(s.started_at, new Date(s.ended_at || s.last_seen_at).getTime())}<div className="text-muted">{num(s.pages)} pages · {num(s.interactions)} taps</div></td>
