@@ -1,0 +1,29 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body { @apply bg-shell text-body font-sans antialiased; }
+  h1, h2, h3 { @apply text-ink; }
+  /* Numbers in a table must line up; a dashboard read at a glance depends on it. */
+  .tabular { font-variant-numeric: tabular-nums; }
+}
+
+@layer components {
+  .card { @apply rounded-xl border border-line bg-white shadow-card; }
+  .btn { @apply inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm font-semibold transition disabled:opacity-50; }
+  .btn-primary { @apply btn bg-brand text-white hover:bg-brand-light; }
+  .btn-quiet { @apply btn border border-line bg-white text-ink hover:bg-shell; }
+  .input { @apply w-full rounded-lg border border-line bg-white px-3.5 py-2.5 text-[15px] text-ink outline-none transition placeholder:text-muted/60 focus:border-brand-accent focus:ring-4 focus:ring-brand-accent/10; }
+  .label { @apply mb-1.5 block text-2xs font-semibold uppercase tracking-wider text-muted; }
+  .chip { @apply inline-flex items-center gap-1 whitespace-nowrap rounded-full px-2 py-0.5 text-2xs font-semibold; }
+  .th { @apply whitespace-nowrap px-3 py-2.5 text-left text-2xs font-semibold uppercase tracking-wider text-muted; }
+  .td { @apply px-3 py-2.5 align-top text-sm; }
+  .plate { @apply font-mono text-[13px] font-semibold tracking-wider text-ink; }
+}
+
+@keyframes rise { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+.rise { animation: rise .25s ease both; }
+@keyframes pulse-dot { 0%, 100% { opacity: 1; } 50% { opacity: .35; } }
+.live-dot { animation: pulse-dot 1.6s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) { .rise, .live-dot { animation: none; } }
