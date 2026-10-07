@@ -13,6 +13,8 @@ const NAV = [
   ['/visitors', 'Visitors', '👀'],
   ['/customers', 'Customers', '👤'],
   ['/free-checks', 'Free checks', '🔎'],
+  ['/log', 'Log', '📋'],
+  ['/emails', 'Emails', '✉️'],
 ];
 
 export default function Layout({ children }) {
@@ -22,7 +24,7 @@ export default function Layout({ children }) {
 
   return (
     <RangeCtx.Provider value={[range, setRange]}>
-      <div className="min-h-screen pb-20 md:pb-0">
+      <div className="min-h-screen pb-20 lg:pb-0">
         <header className="sticky top-0 z-30 border-b border-line bg-white/95 backdrop-blur">
           <div className="mx-auto flex max-w-6xl items-center gap-3 px-4 py-2.5">
             <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-brand text-sm font-bold text-white">GP</span>
@@ -30,10 +32,10 @@ export default function Layout({ children }) {
               <div className="truncate text-[15px] font-semibold text-ink">GaadiPe Web Admin</div>
               <div className="truncate text-2xs text-muted">gaadipe.in and the chat</div>
             </div>
-            <nav className="ml-6 hidden items-center gap-1 md:flex">
+            <nav className="ml-4 hidden items-center gap-0.5 lg:flex">
               {NAV.map(([to, label]) => (
                 <NavLink key={to} to={to} end={to === '/'}
-                  className={({ isActive }) => `rounded-lg px-3 py-2 text-sm font-medium ${isActive ? 'bg-brand/10 text-brand' : 'text-body hover:bg-shell'}`}>
+                  className={({ isActive }) => `whitespace-nowrap rounded-lg px-2.5 py-2 text-sm font-medium ${isActive ? 'bg-brand/10 text-brand' : 'text-body hover:bg-shell'}`}>
                   {label}
                 </NavLink>
               ))}
@@ -59,10 +61,10 @@ export default function Layout({ children }) {
         <main className="mx-auto max-w-6xl px-4 py-5">{children}</main>
 
         {/* Phones: the screens at the thumb, as in an app. */}
-        <nav className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-5 border-t border-line bg-white md:hidden">
+        <nav className="fixed inset-x-0 bottom-0 z-30 flex overflow-x-auto border-t border-line bg-white lg:hidden">
           {NAV.map(([to, label, icon]) => (
             <NavLink key={to} to={to} end={to === '/'}
-              className={({ isActive }) => `flex flex-col items-center gap-0.5 py-2 text-[10px] font-medium ${isActive ? 'text-brand' : 'text-muted'}`}>
+              className={({ isActive }) => `flex min-w-[64px] flex-1 flex-col items-center gap-0.5 py-2 text-[10px] font-medium ${isActive ? 'text-brand' : 'text-muted'}`}>
               <span className="text-lg leading-none">{icon}</span>{label.replace(' & sources', '')}
             </NavLink>
           ))}

@@ -7,6 +7,8 @@ import Sources from './pages/Sources.jsx';
 import Visitors from './pages/Visitors.jsx';
 import Customers from './pages/Customers.jsx';
 import FreeChecks from './pages/FreeChecks.jsx';
+import Log from './pages/Log.jsx';
+import Emails from './pages/Emails.jsx';
 
 /**
  * THE WEBSITE ADMIN (user, 2026-10-07): gaadipe.in and its chat on their own —
@@ -25,6 +27,8 @@ export default function App() {
         <Route path="/visitors" element={<Visitors />} />
         <Route path="/customers" element={<Customers />} />
         <Route path="/free-checks" element={<FreeChecks />} />
+        <Route path="/log" element={<Log />} />
+        <Route path="/emails" element={<Emails />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </Layout>

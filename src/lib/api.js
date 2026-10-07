@@ -76,4 +76,7 @@ export const api = {
   visitor: (id) => call(`/web/visitors/${encodeURIComponent(id)}`),
   customers: (params, quiet) => call(`/web/customers${qs(params)}`, { quiet }),
   freeChecks: (range, quiet) => call(`/web/free-checks${qs({ range })}`, { quiet }),
+  log: (params, quiet) => call(`/web/log${qs(params)}`, { quiet }),
+  emails: (quiet) => call('/web/emails', { quiet }),
+  setEmail: (key, on) => call(`/web/emails/${encodeURIComponent(key)}`, { method: 'PUT', body: { on } }),
 };
