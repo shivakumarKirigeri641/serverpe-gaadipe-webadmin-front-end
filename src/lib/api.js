@@ -128,6 +128,10 @@ export const api = {
   webSession: (id, quiet) => call(`/web/sessions/${encodeURIComponent(id)}`, { quiet }),
   webCustomer: (id, quiet) => call(`/web/customers/${encodeURIComponent(id)}`, { quiet }),
   webSearch: (q) => call(`/web/search${qs({ q })}`, { quiet: true }),
+  series: (range, quiet) => call(`/web/analytics/series${qs({ range })}`, { quiet }),
+  analyticsSummary: (range, quiet) => call(`/web/analytics/summary${qs({ range })}`, { quiet }),
+  funnel: (range, quiet) => call(`/web/funnel${qs({ range })}`, { quiet }),
+  funnelPeople: (params) => call(`/web/funnel/people${qs(params)}`),
   notes: (type, id) => call(`/notes/${type}/${id}`),
   addNote: (type, id, body) => call(`/notes/${type}/${id}`, { method: 'POST', body: { body } }),
 

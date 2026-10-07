@@ -6,6 +6,7 @@ import Live from './pages/Live.jsx';
 import Sessions from './pages/Sessions.jsx';
 import SessionRoom from './pages/SessionRoom.jsx';
 import CustomerRoom from './pages/CustomerRoom.jsx';
+import Analytics from './pages/Analytics.jsx';
 import Layout from './components/Layout.jsx';
 import SignIn from './pages/SignIn.jsx';
 import Overview from './pages/Overview.jsx';
@@ -52,6 +53,7 @@ export default function App() {
           <Route path="/reports" element={<Reports />} />
           <Route path="/referrals" element={<Referrals />} />
           <Route path="/sources" element={<Sources />} />
+          <Route path="/analytics" element={<Analytics />} />
           <Route path="/api" element={<ApiMonitor />} />
           <Route path="/health" element={<Health />} />
           <Route path="/alerts" element={<Alerts />} />
