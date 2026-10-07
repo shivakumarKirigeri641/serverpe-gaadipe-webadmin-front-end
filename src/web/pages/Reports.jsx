@@ -1,3 +1,4 @@
+import ReportButtons from '../../components/ReportButtons.jsx';
 import { useEffect, useState } from 'react';
 import { api } from '../lib/api';
 import { useLoad } from '../lib/useLoad';
@@ -32,7 +33,7 @@ export default function Reports() {
                     <td className="td"><div className="text-ink">{r.requester_name || '-'}</div><div className="tabular text-2xs text-muted">{r.mobile}</div></td>
                     <td className="td"><span className="chip bg-shell text-ink">{r.channel || '—'}</span></td>
                     <td className="td text-2xs">{new Date(r.valid_until) > new Date() ? dateTime(r.valid_until) : <span className="text-muted">ended</span>}</td>
-                    <td className="td text-2xs">{r.has_pdf ? '✓' : '—'}</td>
+                    <td className="td"><ReportButtons id={r.id} hasPdf={r.has_pdf} compact /></td>
                   </tr>))}
               </Table>
             </>

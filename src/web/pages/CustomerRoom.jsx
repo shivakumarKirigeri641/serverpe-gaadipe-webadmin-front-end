@@ -1,3 +1,4 @@
+import ReportButtons from '../../components/ReportButtons.jsx';
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { api } from '../lib/api';
@@ -123,9 +124,10 @@ export default function CustomerRoom() {
                     <tr key={p.id}><td className="td"><CopyId value={`GP-T-${p.id}`} /></td><td className="td plate">{p.reg_no || '—'}</td><td className="td tabular">{rupees(p.amount_paise)}</td>
                       <td className="td"><span className={`chip ${p.status === 'paid' ? 'bg-good-50 text-good-700' : 'bg-shell text-muted'}`}>{p.status}</span></td><td className="td text-2xs">{p.channel || '—'}</td><td className="td text-2xs">{dateTime(p.paid_at || p.created_at)}</td></tr>))}
                 </Table>
-                <Table head={['Report', 'Vehicle', 'Issued', 'Valid until']}>
+                <Table head={['Report', 'Vehicle', 'Issued', 'Valid until', 'Open']}>
                   {data.reports.map((r) => (
-                    <tr key={r.id}><td className="td font-mono text-2xs">{r.report_number}</td><td className="td plate">{r.reg_no}</td><td className="td text-2xs">{dateTime(r.created_at)}</td><td className="td text-2xs">{dateTime(r.valid_until)}</td></tr>))}
+                    <tr key={r.id}><td className="td font-mono text-2xs">{r.report_number}</td><td className="td plate">{r.reg_no}</td><td className="td text-2xs">{dateTime(r.created_at)}</td><td className="td text-2xs">{dateTime(r.valid_until)}</td>
+                      <td className="td"><ReportButtons id={r.id} compact /></td></tr>))}
                 </Table>
               </div>) : null}
             {tab === 'api' ? <ApiTrace rows={data.api} /> : null}

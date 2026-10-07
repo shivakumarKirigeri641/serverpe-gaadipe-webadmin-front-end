@@ -12,6 +12,7 @@ import {
   NA, show, inr, ms, day, DOC_STATE, DOC_NOTE, docWords, PAY_TONE, PAY_WORD, CHANNEL, TAG_WORD, Section, useVehicleMeta, copy, linkTo,
 } from './common.jsx';
 import { TagDialog, NoteDialog, ListDialog, AssignDialog, Confirm } from './actions.jsx';
+import ReportButtons from '../../components/ReportButtons.jsx';
 
 /**
  * ONE VEHICLE, WHOLE (user, 2026-09-25).
@@ -600,8 +601,8 @@ function Reports({ rows }) {
             <td className="td">{r.delivered}</td>
             <td className="td"><Chip tone={r.status === 'Available' ? 'good' : 'info'}>{r.status}</Chip></td>
             <td className="td whitespace-nowrap text-right">
-              {r.has_file && <><button className="btn-quiet !px-2 !py-1 text-2xs" onClick={() => open(r.id, false)}>View</button>
-                <button className="btn-quiet ml-1 !px-2 !py-1 text-2xs" onClick={() => open(r.id, true)}>Download</button></>}
+              <ReportButtons id={r.id} hasPdf={r.has_file} compact />
+              {r.has_file && <button className="btn-quiet ml-1 !px-2 !py-0.5 text-[11px]" onClick={() => open(r.id, true)}>Download</button>}
             </td>
           </tr>
         ))}

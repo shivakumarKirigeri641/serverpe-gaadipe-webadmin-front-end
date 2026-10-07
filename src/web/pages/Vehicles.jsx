@@ -1,3 +1,4 @@
+import ReportButtons from '../../components/ReportButtons.jsx';
 import { useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { api } from '../lib/api';
@@ -55,9 +56,10 @@ export default function Vehicles() {
                 </Section>
                 <Section title="Reports">
                   {data.reports.length ? (
-                    <Table head={['Report', 'Issued', 'Valid until', 'Channel', 'Customer']}>
+                    <Table head={['Report', 'Issued', 'Valid until', 'Channel', 'Customer', 'Open']}>
                       {data.reports.map((r) => <tr key={r.id}><td className="td font-mono text-2xs">{r.report_number}</td><td className="td text-2xs">{dateTime(r.created_at)}</td><td className="td text-2xs">{dateTime(r.valid_until)}</td><td className="td text-2xs">{r.channel}</td>
-                        <td className="td">{r.user_id ? <Link className="text-2xs text-brand" to={`/web/customers/${r.user_id}`}>open →</Link> : '—'}</td></tr>)}
+                        <td className="td">{r.user_id ? <Link className="text-2xs text-brand" to={`/web/customers/${r.user_id}`}>open →</Link> : '—'}</td>
+                        <td className="td"><ReportButtons id={r.id} compact /></td></tr>)}
                     </Table>) : <div className="card px-4 py-4 text-sm text-muted">No reports.</div>}
                 </Section>
                 <Section title="Records-API calls"><ApiTrace rows={data.api} /></Section>

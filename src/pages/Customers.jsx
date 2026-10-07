@@ -10,6 +10,7 @@ import { SessionsTable, VisitSummary } from '../components/Sessions.jsx';
 import { Table, Hint, Chip, Modal, Empty, Spinner, Failed, Banner, openBlob, saveBlob, Pager, PAGE_SIZE } from '../components/ui.jsx';
 import { useSession, allowed } from '../lib/session';
 import JustCame from '../web/components/JustCame.jsx';
+import ReportButtons from '../components/ReportButtons.jsx';
 
 /**
  * Every customer, one row each, and everything about one of them on a tap.
@@ -541,8 +542,7 @@ function Documents({ reports, invoices, can }) {
                     : <span className="text-muted">—</span>}
                 </td>
                 <td className="td">
-                  <DocButtons disabled={!r.has_pdf} busy={busy === `report${r.id}`}
-                    onView={() => open('report', r.id, false)} onSave={() => open('report', r.id, true)} />
+                  <ReportButtons id={r.id} hasPdf={r.has_pdf} />
                 </td>
               </tr>
             ))}
