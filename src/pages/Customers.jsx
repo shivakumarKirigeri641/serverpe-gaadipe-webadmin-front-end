@@ -25,12 +25,8 @@ import JustCame from '../web/components/JustCame.jsx';
 /* Who to look at (phase 3) — the back end holds what each one means. */
 const SEGMENTS = [
   ['new', 'New (last 7 days)'], ['returning', 'Returning'], ['paid', 'Paid'], ['unpaid', 'Never paid'],
-  ['wa_active', 'WhatsApp active (24 h)'], ['wa_inactive', 'WhatsApp quiet'],
   ['pay_failed', 'Payment not completed'], ['suspicious', 'Worth a look'],
-  // Left out of every other view and the total (user, 2026-09-30).
-  ['stopped', 'Said STOP'],
-  // Said STOP, then turned messages back on — START or Undo (user, 2026-10-02).
-  ['came_back', 'Came back after STOP'],
+  // WhatsApp is retired (2026-10-07): its "in window", "quiet" and STOP views are gone.
 ];
 /* Joined today (this browser's date): a light tint on the row (user, 2026-09-26). */
 const isToday = (t) => Boolean(t) && new Date(t).toDateString() === new Date().toDateString();
@@ -53,14 +49,14 @@ function Delta({ now, before }) {
 
 /* What each column means, shown on hover (user, 2026-09-26). */
 const HEAD = [
-  ['Customer', 'Their WhatsApp name (or the name given at checkout) and mobile number. “Journey →” shows everything they did, in order. Green rows joined today.'],
+  ['Customer', 'Their name and mobile number. “Journey →” shows everything they did, in order. Green rows joined today.'],
   ['Vehicles', 'Different vehicle numbers this person has checked.'],
   ['Checks', 'Every lookup they made, including the same vehicle again.'],
   ['Reports', 'Full reports they bought.'],
   ['Paid', 'Money they have paid in total. Hover for the number of payments, refunds and when they last paid.'],
-  ['WhatsApp', 'Messages exchanged with the bot, in and out, and how long ago the last one was. A pulsing green dot = messaged in the last 15 minutes. Below: In window = wrote in the last 24 hours, so the bot can reply free; Quiet = not recently; STOP = asked not to be messaged.'],
-  ['Came from', 'Where they first came from: a WhatsApp ad, a website visit (and its source), or straight to the WhatsApp number. “Unfinished payment” = opened a payment and did not pay.'],
-  ['Last seen', 'The last time they did anything — a message, a check, a website visit.'],
+  ['Website', 'How many times they signed in on gaadipe.in. A pulsing green dot = on the website now.'],
+  ['Came from', 'Where they first came from — the source of their first website visit (Google Ads, search …). “Unfinished payment” = opened a payment and did not pay.'],
+  ['Last seen', 'The last time they did anything — a check, a payment, a website visit.'],
   ['State', 'Blocked, paused, monitoring alerts running (and until when), or an internal/test account.'],
   ['Where', 'Their state, roughly. In order of trust: the state they gave at checkout; else from their website visits (internet address — on mobile data often the operator’s city); else the state their vehicle is registered in. No GPS is ever collected.'],
 ];
@@ -68,10 +64,6 @@ const SOURCE = {
   declared: ['given at checkout', 'The state they chose at checkout (it decides GST). The most reliable.'],
   internet: ['from website visits', 'Looked up from the internet address of their website visits. On mobile data this is often the operator’s location, so treat it as a hint.'],
   vehicle: ['vehicle’s state', 'Nothing better is known: this is where their most-checked vehicle is registered. Many people check vehicles from other states, so it is only a guess.'],
-};
-
-const WA_STATUS = {
-  active: ['In window', 'good'], inactive: ['Quiet', 'info'], stopped: ['STOP', 'wrong'],
 };
 
 export default function Customers() {
@@ -120,7 +112,6 @@ export default function Customers() {
             <option value="paid">Paid most</option>
             <option value="checks">Most checks</option>
             <option value="reports">Most reports</option>
-            <option value="messages">Most WhatsApp messages</option>
           </select>
           <select className="input !w-auto !py-1.5 text-sm" value={filter} onChange={(e) => setFilter(e.target.value)}>
             <option value="all">Everyone</option>
@@ -148,12 +139,12 @@ export default function Customers() {
                 : data.today.customers_yesterday_full != null
                   ? <>+{count(data.today.customers_today)} today vs +{count(data.today.customers_yesterday_full)} yesterday · <Delta now={data.today.customers_today} before={data.today.customers_yesterday_full} /></>
                   : 'all time', null,
-              q || filter !== 'all' ? 'Customers matching your search or filter.' : 'Everyone who has used GaadiPe — on WhatsApp or the website — except those who replied STOP. Below: new customers today against the whole of yesterday (IST).'],
+              q || filter !== 'all' ? 'Customers matching your search or filter.' : 'Everyone who has used GaadiPe, all time. Below: new website customers today against the whole of yesterday (IST).'],
             // Full reports and vehicle checks, all time with today (user, 2026-10-03).
             ...(data.today.reports_total != null ? [
               ['Full reports', data.today.reports_total,
                 <>+{count(data.today.reports_today)} today vs +{count(data.today.reports_yesterday_full)} yesterday · <Delta now={data.today.reports_today} before={data.today.reports_yesterday_full} /></>, null,
-                'Paid full reports, all time. Below: bought today against the whole of yesterday (IST).'],
+                'Paid full reports, all time. Below: bought on the website today against the whole of yesterday (IST).'],
               ['Vehicle checks', data.today.checks_total,
                 <>
                   {data.today.checks_distinct != null && (
@@ -161,14 +152,14 @@ export default function Customers() {
                   )}
                   +{count(data.today.checks_today)} today{data.today.checks_today_distinct != null ? ` (${count(data.today.checks_today_distinct)} distinct)` : ''} vs +{count(data.today.checks_yesterday_full)} yesterday · <Delta now={data.today.checks_today} before={data.today.checks_yesterday_full} />
                 </>, null,
-                `Every vehicle check customers made on WhatsApp and the website, all time — a repeat of the same vehicle included. Distinct: different vehicles. Repeated: the rest. ${data.today.repeats_since
+                `Every vehicle check customers made, all time — a repeat of the same vehicle included. Distinct: different vehicles. Repeated: the rest. ${data.today.repeats_since
                   ? `Repeats are counted from ${date(data.today.repeats_since)}; earlier repeats were not recorded.`
-                  : 'Repeats are counted from the first one recorded after this update went live; earlier repeats were not recorded.'} Below: today against the whole of yesterday (IST).`],
+                  : 'Repeats are counted from the first one recorded after this update went live; earlier repeats were not recorded.'} Below: website checks today against the whole of yesterday (IST).`],
             ] : []),
             ['New today', data.today.joined, <>vs {count(data.today.joined_yesterday)} yesterday · <Delta now={data.today.joined} before={data.today.joined_yesterday} /></>, 'joined',
-              'People who used GaadiPe for the first time since midnight (IST), against yesterday up to the same time. Their rows are tinted green. Tap to sort newest first.'],
+              'New website customers since midnight (IST), against yesterday up to the same time. Their rows are tinted green. Tap to sort newest first.'],
             ['Active today', data.today.active, <>vs {count(data.today.active_yesterday)} yesterday · <Delta now={data.today.active} before={data.today.active_yesterday} /></>, 'last_seen',
-              'Different people who did anything since midnight (IST) — a message, a check, a payment — against yesterday up to the same time. Tap to sort by last seen.'],
+              'Different people who did anything on the website since midnight (IST) — a check, a sign-in, a payment — against yesterday up to the same time. Tap to sort by last seen.'],
           ].map(([label, value, sub, sortBy, note]) => (
             <Hint key={label} note={note}>
               <button type="button" disabled={!sortBy} onClick={() => sortBy && setSort(sortBy)}
@@ -179,23 +170,6 @@ export default function Customers() {
               </button>
             </Hint>
           ))}
-        </div>
-      )}
-
-      {/* Why people said STOP, counted (user, 2026-10-02). */}
-      {filter === 'stopped' && data?.stop_reasons?.length > 0 && (
-        <div className="card mb-3 p-3">
-          <div className="mb-2 text-2xs font-semibold uppercase tracking-wider text-muted">Why they said STOP</div>
-          <div className="flex flex-wrap gap-2">
-            {data.stop_reasons.map((s) => {
-              const all = data.stop_reasons.reduce((a, x) => a + x.n, 0);
-              return (
-                <span key={s.reason} className={`rounded-full border px-3 py-1 text-sm ${s.reason === 'No answer' ? 'border-line text-muted' : 'border-wrong-500/30 bg-wrong-50 text-wrong-700'}`}>
-                  {s.reason} · <b>{s.n}</b> <span className="text-2xs opacity-70">({Math.round((s.n / all) * 100)}%)</span>
-                </span>
-              );
-            })}
-          </div>
         </div>
       )}
 
@@ -229,7 +203,7 @@ export default function Customers() {
                   </td>
                   <td className="td tabular">{count(r.vehicles_checked)}</td>
                   <td className="td tabular">
-                    <Hint note={`${count(r.checks_made)} lookups in total across ${count(r.vehicles_checked)} vehicles. ${r.messages} WhatsApp messages exchanged.`}>
+                    <Hint note={`${count(r.checks_made)} lookups in total across ${count(r.vehicles_checked)} vehicles.`}>
                       <span className="border-b border-dotted border-muted/40">{count(r.checks_made)}</span>
                     </Hint>
                   </td>
@@ -241,40 +215,19 @@ export default function Customers() {
                       </Hint>
                     ) : <span className="text-muted">—</span>}
                   </td>
-                  {/* WhatsApp-first (user, 2026-09-25): messages, not web sign-ins —
-                      the chat is where customers are. Web visits stay in the
-                      customer's detail, under Sign-ins & visits. */}
+                  {/* The website (2026-10-07: WhatsApp is retired): sign-ins, and a dot while they are on it. */}
                   <td className="td tabular">
-                    {r.messages ? (
-                      <Hint note={`${r.messages} WhatsApp message${r.messages === 1 ? '' : 's'}, in and out. Last one ${r.last_message_at ? dateTime(r.last_message_at) : '—'}.${r.sign_ins ? ` Also ${r.sign_ins} website sign-in${r.sign_ins === 1 ? '' : 's'}.` : ''}`}>
-                        <span className="inline-flex items-center gap-1.5">
-                          {r.last_message_at && Date.now() - new Date(r.last_message_at) < 15 * 60 * 1000
-                            && <span className="h-2 w-2 animate-pulse rounded-full bg-good-500" title="Messaged in the last 15 minutes" />}
-                          <span className="font-semibold text-ink">{count(r.messages)}</span>
-                          <span className="text-2xs text-muted">· {ago(r.last_message_at)}</span>
-                        </span>
-                      </Hint>
+                    {r.sign_ins ? (
+                      <span className="inline-flex items-center gap-1.5">
+                        {r.last_seen_at && Date.now() - new Date(r.last_seen_at) < 2 * 60 * 1000
+                          && <span className="h-2 w-2 animate-pulse rounded-full bg-good-500" title="On the website now" />}
+                        <span className="font-semibold text-ink">{count(r.sign_ins)}</span>
+                        <span className="text-2xs text-muted">sign-in{r.sign_ins === 1 ? '' : 's'}</span>
+                      </span>
                     ) : <span className="text-muted">—</span>}
-                    {WA_STATUS[r.wa_status] && (
-                      <div className="mt-0.5"><Chip tone={WA_STATUS[r.wa_status][1]}>{WA_STATUS[r.wa_status][0]}</Chip></div>
-                    )}
-                    {/* Came back after STOP (user, 2026-10-02): when, how, and why they had stopped. */}
-                    {r.came_back && (
-                      <Hint note={`Said STOP ${r.times_stopped > 1 ? `${r.times_stopped} times, last ` : ''}${ago(r.stopped_at)}${r.earlier_reason ? ` — “${r.earlier_reason}”` : ''}. Messages on again ${ago(r.came_back.at)} by ${r.came_back.how === 'Undo' ? 'tapping Undo' : 'replying START'}.`}>
-                        <div className="mt-0.5"><Chip tone="good">↩ Back via {r.came_back.how} · {ago(r.came_back.at)}</Chip></div>
-                      </Hint>
-                    )}
-                    {/* Why they said STOP, if they answered (user, 2026-10-02). */}
-                    {r.wa_status === 'stopped' && (
-                      <Hint note={r.stop_said ? `In their words: “${r.stop_said}”` : r.stop_reason ? 'Their answer to “May we ask why?” after STOP.' : 'They did not answer “May we ask why?”.'}>
-                        <div className={`mt-0.5 max-w-[11rem] truncate text-2xs ${r.stop_reason ? 'font-semibold text-wrong-700' : 'text-muted'}`}>
-                          Why: {r.stop_reason || 'no answer'}{r.stop_said ? ` — “${r.stop_said}”` : ''}
-                        </div>
-                      </Hint>
-                    )}
                   </td>
                   <td className="td text-2xs">
-                    <Hint note="Where they first came from: a website visit's source, a WhatsApp ad, or straight to the WhatsApp number.">
+                    <Hint note="Where they first came from — the source of their first website visit.">
                       <span className="text-body">{String(r.first_source || '—').replace(/_/g, ' ')}</span>
                     </Hint>
                     {r.pay_failed && <div className="mt-0.5"><Chip tone="watch">Unfinished payment</Chip></div>}
@@ -288,7 +241,7 @@ export default function Customers() {
                     <div className="flex flex-wrap gap-1">
                       {r.blocked && <Chip tone="wrong">Blocked</Chip>}
                       {r.is_paused && <Chip tone="watch">Paused</Chip>}
-                      {r.active && <Hint note="Vehicle alerts (daily updates) are running from a report. Not the same as chatting now — see the WhatsApp column for that."><Chip tone="good">🔔 Alerts on{r.alerts_until ? ` · until ${date(r.alerts_until)}` : ''}</Chip></Hint>}
+                      {r.active && <Hint note="Vehicle alerts (daily updates) are running from a report."><Chip tone="good">🔔 Alerts on{r.alerts_until ? ` · until ${date(r.alerts_until)}` : ''}</Chip></Hint>}
                       {r.is_internal && <Chip tone="brand">Internal</Chip>}
                     </div>
                   </td>
@@ -347,14 +300,13 @@ function CustomerDetail({ id, onClose, onChanged }) {
     ['vehicles', 'Vehicles', data?.vehicles.length],
     ['payments', 'Payments', data?.payments.length],
     ['documents', 'Documents', (data?.reports.length || 0) + (data?.invoices.length || 0)],
-    ['chat', 'Conversation', data?.messages.length],
     ['signins', 'Sign-ins & visits', data?.visits?.sign_ins],
     ['trail', 'Devices & consent', (data?.devices.length || 0) + (data?.consent.length || 0)],
   ];
 
   return (
     <Modal wide busy={busy} onClose={onClose}
-      title={u ? (u.wa_profile_name || 'Unknown') : 'Customer'}
+      title={u ? (u.display_name || u.name || u.wa_profile_name || '-') : 'Customer'}
       subtitle={u ? `${fmtMobile(u.mobile)} · joined ${date(u.created_at)} · last seen ${ago(u.last_seen_at)}` : ''}
       footer={u && (
         <>
@@ -430,26 +382,6 @@ function CustomerDetail({ id, onClose, onChanged }) {
 
             {tab === 'documents' && <Documents reports={data.reports} invoices={data.invoices} can={can} />}
 
-            {tab === 'chat' && (
-              data.messages.length ? (
-                <div className="max-h-[50vh] space-y-2 overflow-y-auto pr-1">
-                  {[...data.messages].reverse().map((m, i) => (
-                    <div key={i} className={`flex ${m.direction === 'out' ? 'justify-end' : 'justify-start'}`}>
-                      <div className={`max-w-[80%] rounded-lg px-3 py-2 text-sm ${
-                        m.direction === 'out' ? 'bg-brand/8 text-ink' : 'bg-shell text-body'}`}>
-                        <div className="whitespace-pre-wrap break-words">{m.body || `[${m.message_type}]`}</div>
-                        <div className="mt-1 text-2xs text-muted">
-                          {dateTime(m.created_at)}
-                          {m.template_name ? ` · template ${m.template_name}` : ''}
-                          {m.error_message ? ` · failed: ${m.error_message}` : ''}
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : <Empty>No messages.</Empty>
-            )}
-
             {tab === 'signins' && <SignInHistory data={data} />}
 
             {tab === 'trail' && (
@@ -473,8 +405,7 @@ function CustomerDetail({ id, onClose, onChanged }) {
                     </Table>
                   ) : (
                     <p className="text-sm text-muted">
-                      Nothing recorded. WhatsApp gives no device or IP — only the checkout page does,
-                      so a customer who has never paid has no device trail.
+                      Nothing recorded yet — devices are recorded at checkout.
                     </p>
                   )}
                 </div>
