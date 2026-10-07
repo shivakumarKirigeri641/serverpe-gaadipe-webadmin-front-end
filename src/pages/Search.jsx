@@ -20,8 +20,9 @@ function line(group, x) {
     case 'vehicles': return [x.reg_no, [x.maker, x.model].filter(Boolean).join(' ') || '', x.to || `/search?q=${x.reg_no}`];
     case 'reports': return [x.report_number || `Report ${x.id}`, `${x.reg_no || ''} · ${dateTime(x.created_at)}`, x.to || `/reports`];
     case 'payments': return [`GP-T-${x.id} · ${rupees(x.amount_paise)}`, `${x.status || ''} · ${x.mobile || ''} · ${dateTime(x.created_at)}`, x.to || '/payments'];
+    case 'sessions': return [`Visit ${x.session_id}`, `${x.mobile || 'anonymous'} · ${dateTime(x.started_at)}`, x.to];
     case 'events': return [x.name || x.kind || 'Event', `${x.reg_no || x.mobile || ''} · ${dateTime(x.occurred_at || x.created_at)}`, x.to || '/log'];
-    default: return [x.label || x.id, x.detail || '', x.to || '/'];
+    default: return [`${x.type ? `${x.type} · ` : ''}${x.label || x.id}`, x.detail || '', x.to || '/'];
   }
 }
 

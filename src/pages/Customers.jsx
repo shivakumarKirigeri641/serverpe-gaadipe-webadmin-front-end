@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { api } from '../lib/api';
 import { useLoad } from '../lib/useLoad';
 import { useRange } from '../components/Layout.jsx';
@@ -21,6 +22,7 @@ const CH_CHIP = {
 
 export default function Customers() {
   const [range] = useRange();
+  const navigate = useNavigate();
   const [q, setQ] = useState('');
   const [term, setTerm] = useState('');
   const [channel, setChannel] = useState('all');
@@ -79,7 +81,7 @@ export default function Customers() {
                 {data.rows.map((c) => {
                   const [chLabel, chCls] = CH_CHIP[c.channel] || CH_CHIP.web;
                   return (
-                    <tr key={c.user_id}>
+                    <tr key={c.user_id} className="cursor-pointer hover:bg-shell/60" onClick={() => navigate(`/customers/${c.user_id}`)}>
                       <td className="td">
                         <div className="flex items-center gap-1.5 text-ink">{c.name || 'Customer'}{c.is_new ? <span className="chip bg-good-50 text-good-700">new</span> : null}</div>
                         <div className="tabular text-2xs text-muted">{c.mobile}{c.email ? ` · ${c.email}` : ''}</div>

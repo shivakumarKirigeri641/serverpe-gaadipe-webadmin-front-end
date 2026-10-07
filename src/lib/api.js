@@ -124,6 +124,12 @@ export const api = {
   endMySessions: (which) => call(`/web/me/sessions/${which}/end`, { method: 'POST', body: {} }),
   presence: (screen, entity) => call('/web/presence', { method: 'POST', body: { screen, entity }, quiet: true }),
   live: (quiet) => call('/web/live', { quiet }),
+  webSessions: (params, quiet) => call(`/web/sessions${qs(params)}`, { quiet }),
+  webSession: (id, quiet) => call(`/web/sessions/${encodeURIComponent(id)}`, { quiet }),
+  webCustomer: (id, quiet) => call(`/web/customers/${encodeURIComponent(id)}`, { quiet }),
+  webSearch: (q) => call(`/web/search${qs({ q })}`, { quiet: true }),
+  notes: (type, id) => call(`/notes/${type}/${id}`),
+  addNote: (type, id, body) => call(`/notes/${type}/${id}`, { method: 'POST', body: { body } }),
 
   log: (params, quiet) => call(`/web/log${qs(params)}`, { quiet }),
   emails: (quiet) => call('/web/emails', { quiet }),

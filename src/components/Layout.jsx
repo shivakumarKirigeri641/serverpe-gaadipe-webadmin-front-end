@@ -51,7 +51,7 @@ export const NAV = [
     ['/settings', 'Settings', '⚙️'],
   ]],
 ];
-export const AVAILABLE = new Set(['/', '/live', '/log', '/customers', '/visitors', '/free-checks', '/payments', '/reports', '/referrals', '/sources',
+export const AVAILABLE = new Set(['/', '/live', '/log', '/customers', '/sessions', '/visitors', '/free-checks', '/payments', '/reports', '/referrals', '/sources',
   '/api', '/health', '/alerts', '/audit', '/emails', '/admins', '/settings', '/search']);
 
 function useClock() {
