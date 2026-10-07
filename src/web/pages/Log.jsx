@@ -17,7 +17,7 @@ const KINDS = [
 ];
 
 const EMAIL_NAMES = {
-  sign_in: 'sign-in', web_check: 'website check', chat_check: 'free chat check', push_on: 'notifications on',
+  visit: 'website visit', sign_in: 'sign-in', web_check: 'website check', chat_check: 'free chat check', push_on: 'notifications on',
   payment: 'payment', left_at_pay: 'unpaid ₹19', contact: 'contact message', feedback: 'feedback',
   daily_summary: 'daily summary', alert: 'alert', security: 'security',
 };
