@@ -4,17 +4,13 @@ import { useSession } from './lib/session';
 // The website admin's sign-in: the panel passcode, or a code by SMS (2026-10-07).
 import SignIn from './web/pages/SignIn.jsx';
 import Dashboard from './pages/Dashboard.jsx';
-import Home from './pages/Home.jsx';
 import CommandCenter from './pages/CommandCenter.jsx';
 import Journey from './pages/Journey.jsx';
-import WhatsAppCenter from './pages/WhatsAppCenter.jsx';
 import Lookups from './pages/Lookups.jsx';
 import Payments from './pages/Payments.jsx';
 import ApiMonitor from './pages/ApiMonitor.jsx';
 import Alerts from './pages/Alerts.jsx';
 import Geo from './pages/Geo.jsx';
-import Conversations from './pages/Conversations.jsx';
-import Campaigns from './pages/Campaigns.jsx';
 import Customers from './pages/Customers.jsx';
 import Fleets from './pages/fleets/Fleets.jsx';
 import FleetDetail from './pages/fleets/FleetDetail.jsx';
@@ -25,9 +21,7 @@ import GpReferrals from './pages/GpReferrals.jsx';
 import Tickets from './pages/Tickets.jsx';
 import ReportAccess from './pages/ReportAccess.jsx';
 import CustomerEmails from './pages/CustomerEmails.jsx';
-import Broadcast from './pages/Broadcast.jsx';
 import FreeReports from './pages/FreeReports.jsx';
-import Live from './pages/Live.jsx';
 import VehicleExplorer from './pages/vehicles/Explorer.jsx';
 import BusinessHealth from './pages/ops/BusinessHealth.jsx';
 import Profitability from './pages/ops/Profitability.jsx';
@@ -40,7 +34,6 @@ import DropOff from './pages/ops/DropOff.jsx';
 import CustomerIntel from './pages/ops/CustomerIntel.jsx';
 import Retention from './pages/ops/Retention.jsx';
 import Attribution from './pages/ops/Attribution.jsx';
-import WhatsAppOps from './pages/ops/WhatsAppOps.jsx';
 import AdSpend from './pages/ops/AdSpend.jsx';
 import WhyNotPaid from './pages/ops/WhyNotPaid.jsx';
 import DataQuality from './pages/ops/DataQuality.jsx';
@@ -75,14 +68,10 @@ import Finance from './pages/Finance.jsx';
 import Documents from './pages/Documents.jsx';
 import Check from './pages/Check.jsx';
 import Blocks from './pages/Blocks.jsx';
-import OwnerClaims from './pages/ops/OwnerClaims.jsx';
-import OwnerPhotos from './pages/ops/OwnerPhotos.jsx';
-import HotLeads from './pages/ops/HotLeads.jsx';
 import ChecksByCustomer from './pages/ops/ChecksByCustomer.jsx';
 import AdReturn from './pages/ops/AdReturn.jsx';
 import DataRequests from './pages/ops/DataRequests.jsx';
 import SupportInbox from './pages/ops/SupportInbox.jsx';
-import GiftReports from './pages/ops/GiftReports.jsx';
 import Feedback from './pages/Feedback.jsx';
 import Settings from './pages/Settings.jsx';
 import Policies from './pages/Policies.jsx';
@@ -123,7 +112,8 @@ export default function App() {
       <Route path="/customer-intelligence" element={<CustomerIntel />} />
       <Route path="/retention" element={<Retention />} />
       <Route path="/attribution" element={<Attribution />} />
-      <Route path="/whatsapp/operations" element={<WhatsAppOps />} />
+      {/* WhatsApp is retired (2026-10-07): its screens lead to what replaced them. */}
+      <Route path="/whatsapp/operations" element={<Navigate to="/" replace />} />
       <Route path="/ad-spend" element={<AdSpend />} />
       <Route path="/why-not-paid" element={<WhyNotPaid />} />
       <Route path="/data-quality" element={<DataQuality />} />
@@ -142,9 +132,9 @@ export default function App() {
       <Route path="/exports" element={<ExportCenter />} />
       <Route path="/reports/delivery" element={<Delivery />} />
       <Route path="/preferences" element={<Preferences />} />
-      <Route path="/overview" element={<Home />} />
+      <Route path="/overview" element={<Navigate to="/web" replace />} />
       <Route path="/journey" element={<Journey />} />
-      <Route path="/whatsapp" element={<WhatsAppCenter />} />
+      <Route path="/whatsapp" element={<Navigate to="/" replace />} />
       <Route path="/lookups" element={<Lookups />} />
       <Route path="/payments" element={<Payments />} />
       <Route path="/api-monitor" element={<ApiMonitor />} />
@@ -152,9 +142,9 @@ export default function App() {
       <Route path="/where" element={<Geo />} />
       {/* The old numbers screen keeps its place for anyone who wants it. */}
       <Route path="/dashboard" element={<Dashboard />} />
-      <Route path="/conversations" element={<Conversations />} />
-      <Route path="/campaigns" element={<Campaigns />} />
-      <Route path="/live" element={<Live />} />
+      <Route path="/conversations" element={<Navigate to="/web/sessions" replace />} />
+      <Route path="/campaigns" element={<Navigate to="/web/broadcast" replace />} />
+      <Route path="/live" element={<Navigate to="/web/live" replace />} />
       <Route path="/customers" element={<Customers />} />
       <Route path="/fleets" element={<Fleets />} />
       <Route path="/fleets/:id" element={<FleetDetail />} />
@@ -165,7 +155,7 @@ export default function App() {
       <Route path="/referrals-quizpe" element={<Referrals />} />
       <Route path="/report-access" element={<ReportAccess />} />
       <Route path="/customer-emails" element={<CustomerEmails />} />
-      <Route path="/broadcast" element={<Broadcast />} />
+      <Route path="/broadcast" element={<Navigate to="/web/broadcast" replace />} />
       <Route path="/tickets" element={<Tickets />} />
       <Route path="/free-reports" element={<FreeReports />} />
       {/* The Vehicles module (user, 2026-09-25). */}
@@ -184,14 +174,14 @@ export default function App() {
       <Route path="/documents" element={<Documents />} />
       <Route path="/check" element={<Check />} />
       <Route path="/blocks" element={<Blocks />} />
-      <Route path="/owner-claims" element={<OwnerClaims />} />
-      <Route path="/owner-photos" element={<OwnerPhotos />} />
-      <Route path="/hot-leads" element={<HotLeads />} />
+      <Route path="/owner-claims" element={<Navigate to="/" replace />} />
+      <Route path="/owner-photos" element={<Navigate to="/" replace />} />
+      <Route path="/hot-leads" element={<Navigate to="/web/leads" replace />} />
       <Route path="/checks-by-customer" element={<ChecksByCustomer />} />
       <Route path="/ad-return" element={<AdReturn />} />
       <Route path="/data-requests" element={<DataRequests />} />
       <Route path="/support-inbox" element={<SupportInbox />} />
-      <Route path="/gift-reports" element={<GiftReports />} />
+      <Route path="/gift-reports" element={<Navigate to="/" replace />} />
       <Route path="/feedback" element={<Feedback />} />
       <Route path="/settings" element={<Settings />} />
       <Route path="/policies" element={<Policies />} />

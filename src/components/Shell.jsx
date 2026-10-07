@@ -1,4 +1,3 @@
-import MetaNews from './MetaNews.jsx';
 import { NavLink, Link, useLocation, useNavigate } from 'react-router-dom';
 import { useLayoutEffect, useRef, useState } from 'react';
 import { ConnectionStatus, RefreshButton } from './HeaderStatus.jsx';
@@ -42,8 +41,6 @@ const NAV = [
       { to: '/', label: 'Business Health', end: true, icon: HeartIcon, cap: 'dashboard.view' },
       { to: '/command', label: 'Live Command Center', icon: GridIcon },
       { to: '/activity', label: 'Live activity', icon: PulseIcon, cap: 'dashboard.view' },
-      { to: '/overview', label: 'Overview', icon: ListIcon },
-      { to: '/live', label: 'Live chats', icon: LifebuoyIcon },
       { to: '/where', label: 'Where', icon: CarIcon },
     ],
   },
@@ -67,8 +64,6 @@ const NAV = [
       { to: '/web/sources', label: 'Ads & sources', icon: SendIcon },
       { to: '/web/analytics', label: 'Live analytics', icon: ChartIcon },
       { to: '/web/insights', label: 'Insights', icon: ChartIcon },
-      { to: '/web/broadcast', label: 'Broadcast (email)', icon: MailIcon },
-      { to: '/web/emails', label: 'Emails to you', icon: MailIcon },
       { to: '/web/server-log', label: 'Server log', icon: ListIcon },
       { to: '/web/privacy', label: 'Privacy & monitoring', icon: ShieldIcon },
       { to: '/web/admins', label: 'Web admins', icon: KeyIcon, cap: 'admins' },
@@ -86,7 +81,6 @@ const NAV = [
       { to: '/graphs/money', label: 'Money', icon: RupeeIcon, cap: 'dashboard.view' },
       { to: '/graphs/customers', label: 'Customers', icon: UsersIcon, cap: 'dashboard.view' },
       { to: '/graphs/vehicles', label: 'Vehicles', icon: CarIcon, cap: 'dashboard.view' },
-      { to: '/graphs/whatsapp', label: 'WhatsApp', icon: SendIcon, cap: 'dashboard.view' },
       { to: '/graphs/services', label: 'Services & APIs', icon: PulseIcon, cap: 'dashboard.view' },
       { to: '/analytics', label: 'Website analytics', icon: ChartIcon },
     ],
@@ -116,21 +110,21 @@ const NAV = [
       { to: '/vehicles?view=challans', label: 'Challans', icon: BookIcon, cap: 'vehicles.view', match: view('challans') },
       { to: '/vehicles/lists', label: 'Saved vehicles', icon: StarIcon, cap: 'vehicles.view',
         match: (p, s) => p === '/vehicles/lists' || (p === '/vehicles' && /[?&]list=/.test(s)) },
-      ...[['paid', 'Paid reports', RupeeIcon], ['unpaid', 'Unpaid lookups', SearchIcon], ['whatsapp', 'WhatsApp vehicles', SendIcon],
-        ['web', 'Web vehicles', DoorIcon], ['blacklisted', 'Blacklisted vehicles', ShieldIcon], ['loan', 'Loan / hypothecation', KeyIcon]]
+      ...[['paid', 'Paid reports', RupeeIcon], ['unpaid', 'Unpaid lookups', SearchIcon],
+        ['blacklisted', 'Blacklisted vehicles', ShieldIcon], ['loan', 'Loan / hypothecation', KeyIcon]]
         .map(([v, label, icon]) => ({ to: `/vehicles?view=${v}`, label, icon, cap: 'vehicles.view', match: view(v) })),
       { to: '/vehicles/insights', label: 'Patterns & signals', icon: ChartIcon, cap: 'vehicles.view' },
       { to: '/lookups', label: 'Vehicle lookups', icon: SearchIcon },
       { to: '/check', label: 'Check a vehicle', icon: SearchIcon, cap: 'lookup' },
     ],
   },
+  /* BROADCAST (user, 2026-10-07): WhatsApp is gone — customers are written to by
+     email now, and by RCS once it is set up. */
   {
-    group: 'WhatsApp',
+    group: 'Broadcast',
     items: [
-      { to: '/whatsapp', label: 'WhatsApp Command Center', end: true, icon: SendIcon, badge: 'whatsapp' },
-      { to: '/conversations', label: 'Conversations', icon: LifebuoyIcon },
-      { to: '/whatsapp/operations', label: 'Message analytics & cost', icon: RupeeIcon, cap: 'dashboard.view' },
-      { to: '/campaigns', label: 'Campaigns', icon: SendIcon },
+      { to: '/web/broadcast', label: 'Broadcast (email · RCS soon)', icon: MailIcon },
+      { to: '/web/emails', label: 'Emails to you', icon: MailIcon },
     ],
   },
   {
@@ -224,11 +218,14 @@ const NAV = [
 /* WHATSAPP IS RETIRED (user, 2026-10-07: "there is no more WhatsApp now"): its
    screens leave the menu (the WhatsApp group, Live chats, the WhatsApp graphs).
    They still open by address, for the history they hold. */
-const WHATSAPP_RETIRED = new Set(['/whatsapp', '/conversations', '/whatsapp/operations', '/campaigns', '/live', '/graphs/whatsapp']);
+// Also the screens that only worked through WhatsApp: hot leads (its 24-hour window),
+// RC-photo owner verification and claims, and gift reports used in the chat.
+const WHATSAPP_RETIRED = new Set(['/whatsapp', '/conversations', '/whatsapp/operations', '/campaigns', '/live', '/graphs/whatsapp',
+  '/hot-leads', '/owner-photos', '/owner-claims', '/gift-reports']);
 
 /* Each group's icon in the tree. */
 const GROUP_ICON = {
-  Dashboard: GridIcon, Website: DoorIcon, Graphs: ChartIcon, Customers: UsersIcon, Vehicles: CarIcon, WhatsApp: SendIcon, Reports: DocIcon, Payments: RupeeIcon,
+  Dashboard: GridIcon, Website: DoorIcon, Graphs: ChartIcon, Customers: UsersIcon, Vehicles: CarIcon, Broadcast: MailIcon, Reports: DocIcon, Payments: RupeeIcon,
   Analytics: ChartIcon, Technical: PulseIcon, Operations: BellIcon, Finance: RupeeIcon, System: CogIcon,
 };
 /* Words people might type for a screen, beyond its name. */
@@ -263,7 +260,6 @@ function highlight(text, q) {
 function Badge({ kind, b }) {
   if (!b) return null;
   const [n, text, tone] = {
-    whatsapp: [b.whatsapp_live, `${b.whatsapp_live} live`, 'bg-good-50 text-good-700'],
     alerts: [b.alerts_open, String(b.alerts_open), b.alerts_critical ? 'bg-wrong-500 text-white' : 'bg-watch-50 text-watch-700'],
     payments: [b.payments_pending, `${b.payments_pending} pending`, 'bg-shell text-body'],
     vehicles: [b.vehicles_today, `${b.vehicles_today} today`, 'bg-brand/10 text-brand-deep'],
@@ -511,7 +507,6 @@ export default function Shell({ title, subtitle, actions, tabs, children }) {
         <main className="m-enter px-4 py-5 lg:px-6"><OutageBanner />{children}</main>
       </div>
       <Toasts />
-      <MetaNews />
       <IconTips />
       <CommandPalette nav={visibleNav} can={can} open={palette} onClose={() => setPalette(false)} />
     </div>

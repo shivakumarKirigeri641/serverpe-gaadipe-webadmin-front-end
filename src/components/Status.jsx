@@ -65,24 +65,24 @@ function Steps({ steps, label }) {
  * rest are muted.
  */
 export function JourneyStages({ items }) {
-  const has = (re) => items.some((i) => re.test(i.name || '') || (i.kind === 'message' && re.test('whatsapp_message')));
+  const has = (re) => items.some((i) => re.test(i.name || ''));
+  /* VISIT → SEARCH → SIGN IN → REPORT → PAYMENT (2026-10-07: WhatsApp is retired;
+     signing in on the website is the step it used to be). */
   const reached = {
-    visit: has(/^(session_started|page_view|whatsapp_cta_clicked)$/),
-    search: has(/^(whatsapp_vehicle_received|vehicle_search_success|vehicle_search_failed)$/),
-    whatsapp: has(/^(whatsapp_chat_started|whatsapp_message|whatsapp_greeting|terms_accepted)/),
+    visit: has(/^(session_started|page_view)$/),
+    search: has(/^(vehicle_search_success|vehicle_search_failed|vehicle_check|vehicle_check_repeat|chat_anon_check)$/),
+    signin: has(/^(signed_in|sign_in_success|site_sign_in)$/),
     report: has(/^report_generated$/),
     payment: has(/^payment_success$/),
   };
   const payFailed = !reached.payment && has(/^payment_failed$/);
   const started = !reached.payment && has(/^payment_(started|page_viewed)$/);
-  const order = [['visit', 'Visit', 'Came to the website'], ['search', 'Search', 'Asked about a vehicle'], ['whatsapp', 'WhatsApp', 'Talked to GaadiPe on WhatsApp'],
+  const order = [['visit', 'Visit', 'Came to the website'], ['search', 'Search', 'Checked a vehicle'], ['signin', 'Sign in', 'Signed in with their mobile number'],
     ['report', 'Report', 'A full report was generated'], ['payment', 'Payment', 'Paid for a report']];
   const steps = order.map(([key, label, note]) => ({
     key, label, note,
     state: reached[key] ? 'done' : key === 'payment' && payFailed ? 'failed' : key === 'payment' && started ? 'current' : 'todo',
   }));
-  // Someone who came straight to WhatsApp never "visited": that step is simply not part of their journey.
-  if (!reached.visit && (reached.whatsapp || reached.search)) steps[0] = { ...steps[0], state: 'todo', note: 'Came straight to WhatsApp — no website visit.' };
   const next = steps.findIndex((s) => s.state === 'todo' && steps.slice(0, steps.indexOf(s)).some((p) => p.state === 'done'));
   if (next > 0 && !steps.some((s) => s.state === 'current' || s.state === 'failed')) steps[next] = { ...steps[next], state: 'current' };
   return <Steps steps={steps} label="Customer journey" />;

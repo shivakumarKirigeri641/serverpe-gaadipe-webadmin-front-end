@@ -6,7 +6,6 @@ import Shell from '../components/Shell.jsx';
 import { Hint, Failed, Empty, Chip, Skeleton } from '../components/ui.jsx';
 import { count, dateTime, date, mobile as fmtMobile, ago } from '../lib/format';
 import { JourneyStages } from '../components/Status.jsx';
-import ReplyBox from '../components/ReplyBox.jsx';
 
 /**
  * CUSTOMER JOURNEY (user, 2026-09-25, command center phase 3).
@@ -17,9 +16,9 @@ import ReplyBox from '../components/ReplyBox.jsx';
  * converted. Opened from the Command Center, Customers, or by searching here.
  */
 
+/* WhatsApp is retired (2026-10-07): its chat messages and bot steps are not shown. */
 const FILTERS = [
-  ['all', 'Everything'], ['steps', 'Steps only'], ['messages', 'Messages only'],
-  ['web', 'Website'], ['money', 'Payments & reports'], ['problems', 'Problems'],
+  ['all', 'Everything'], ['web', 'Website'], ['money', 'Payments & reports'], ['problems', 'Problems'],
 ];
 const inr = (p) => `₹${(Number(p || 0) / 100).toLocaleString('en-IN', { maximumFractionDigits: 2 })}`;
 
@@ -55,10 +54,8 @@ export default function Journey() {
     if (d.length === 10) setSp({ mobile: d });
   };
 
-  const items = useMemo(() => (data?.items || []).filter((i) => ({
+  const items = useMemo(() => (data?.items || []).filter((i) => i.kind !== 'message' && i.channel !== 'whatsapp').filter((i) => ({
     all: true,
-    steps: i.kind === 'event' && i.channel !== 'web' && !/api/.test(i.name),
-    messages: i.kind === 'message',
     web: i.channel === 'web',
     money: /payment|report/.test(i.name || ''),
     problems: i.status === 'failed',
@@ -82,19 +79,12 @@ export default function Journey() {
         <Empty>GaadiPe has never heard from this number.</Empty>
       ) : (
         <>
-          {/* Reply on WhatsApp while their window is open (user, 2026-10-01). */}
-          {p.mobile && !p.opted_out && (
-            <div className="mb-3"><ReplyBox mobile={p.mobile} lastInboundAt={p.last_inbound_at}
-              onSent={() => api.journey(who).then(setData).catch(() => {})} /></div>
-          )}
           {/* ─────────────────────────────── who ── */}
           <div className="grid gap-3 md:grid-cols-4">
             <div className="card p-4 md:col-span-2">
               <div className="flex flex-wrap items-center gap-2">
                 <span className="text-lg font-bold text-ink">{p.name || 'Unknown'}</span>
                 {p.mobile && <span className="tabular text-sm text-muted">{fmtMobile(p.mobile)}</span>}
-                {p.opted_out ? <Chip tone="wrong">Replied STOP{p.stop_reason?.reason ? ` · ${p.stop_reason.reason}${p.stop_reason.said ? `: “${p.stop_reason.said}”` : ''}` : ''}</Chip>
-                  : p.in_window ? <Chip tone="good">In the 24-hour window</Chip> : p.mobile ? <Chip tone="info">WhatsApp quiet</Chip> : null}
                 {p.spent_paise > 0 && <Chip tone="good">Paid</Chip>}
                 {p.unfinished > 0 && <Chip tone="watch">{p.unfinished} unfinished payment{p.unfinished === 1 ? '' : 's'}</Chip>}
               </div>
@@ -103,7 +93,6 @@ export default function Journey() {
                 <span>Last active <b className="text-ink">{p.last_active ? ago(p.last_active) : '—'}</b></span>
                 <span>Where <b className="text-ink">{[p.place?.city, p.place?.region].filter(Boolean).join(', ') || '—'}</b></span>
                 <span>Device <b className="text-ink">{[p.device?.device_type, p.device?.os, p.device?.browser].filter(Boolean).join(' · ') || '—'}</b></span>
-                <span>Bot state <b className="text-ink">{p.state || '—'}</b></span>
                 <span>Email <b className="text-ink">{p.email || '—'}</b>{' '}
                   {p.email_state && p.email_state !== 'none' && (
                     <Chip tone={{ confirmed: 'good', unconfirmed: 'watch', unsubscribed: 'wrong' }[p.email_state]}
@@ -124,7 +113,6 @@ export default function Journey() {
                   <span>Days active <b className="text-ink">{count(p.days_active)}</b></span>
                   <span>Payment failures <b className={p.payment_failures ? 'text-wrong-700' : 'text-ink'}>{count(p.payment_failures)}</b></span>
                   <span>Last vehicle <b className="text-ink">{p.last_vehicle ? <Link className="text-brand-deep hover:underline" to={`/vehicles/${p.last_vehicle}`}>{p.last_vehicle}</Link> : '—'}</b></span>
-                  <span>Last channel <b className="text-ink">{p.last_channel === 'web' ? 'Website' : p.last_channel === 'whatsapp' ? 'WhatsApp' : '—'}</b></span>
                 </div>
               )}
             </div>

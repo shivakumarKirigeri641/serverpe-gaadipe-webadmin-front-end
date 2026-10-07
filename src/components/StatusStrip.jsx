@@ -35,7 +35,6 @@ function facts(p) {
   if (p.consecutive_fails) rows.push(['Failing', `${p.consecutive_fails} in a row`, 'bad']);
   if (p.last_fail_at && p.state !== 'ok') rows.push(['Last failure', ago(p.last_fail_at), 'bad']);
   if (p.last_error && p.state !== 'ok') rows.push(['Error', p.last_error, 'bad']);
-  if (p.key === 'whatsapp' && p.last_inbound_at) rows.push(['Last customer message', ago(p.last_inbound_at)]);
   return rows;
 }
 
@@ -72,7 +71,8 @@ export default function StatusStrip() {
   const { badges } = useLive();
   const strip = useRef(null);
   const [hover, setHover] = useState(null);
-  const list = badges?.providers;
+  // WhatsApp is retired (2026-10-07): its light is not shown.
+  const list = badges?.providers?.filter((p) => p.key !== 'whatsapp');
   if (!Array.isArray(list) || !list.length) return null;
   const bad = list.filter((p) => p.state === 'down' || p.state === 'degraded');
   const open = (key) => (e) => {
