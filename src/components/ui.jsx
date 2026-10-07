@@ -62,6 +62,44 @@ export function Table({ head, children }) {
   );
 }
 
+/* An id with a small copy button (spec §104). */
+export function CopyId({ value, className = '' }) {
+  if (!value) return null;
+  return (
+    <span className={`inline-flex items-center gap-1 font-mono text-2xs text-muted ${className}`}>
+      {value}
+      <button type="button" title="Copy" aria-label={`Copy ${value}`} className="rounded px-1 hover:bg-shell"
+        onClick={(e) => {
+          e.stopPropagation(); e.preventDefault();
+          navigator.clipboard?.writeText(value).catch(() => {});
+          const b = e.currentTarget; const was = b.textContent; b.textContent = '✓'; setTimeout(() => { b.textContent = was; }, 1200);
+        }}>⧉</button>
+    </span>
+  );
+}
+
+/* Where a visitor is, in words, with a colour AND a word (spec §51). */
+export const STATUS = {
+  ONLINE: ['● Online', 'bg-good-50 text-good-700'],
+  IDLE: ['◐ Idle', 'bg-watch-50 text-watch-700'],
+  HIDDEN: ['◑ Tab hidden', 'bg-shell text-muted'],
+  OFFLINE: ['○ Offline', 'bg-shell text-muted'],
+  ENDED: ['○ Left', 'bg-shell text-muted'],
+  TERMINATED: ['⛔ Ended by admin', 'bg-wrong-50 text-wrong-700'],
+};
+export function StatusChip({ status }) {
+  const [label, cls] = STATUS[status] || STATUS.OFFLINE;
+  return <span className={`chip ${cls}`}>{label}</span>;
+}
+
+/* The journey steps the site reports, in words. */
+export const STEP = {
+  welcome: 'Just arrived', home: 'Home page', checking: 'Checking a vehicle', viewing: 'Looking at a vehicle',
+  signing_in: 'Signing in — mobile number', code: 'Signing in — entering the code', name: 'Adding a name', email: 'Adding an email',
+  paying: 'At the ₹19 payment', paid: 'Back from paying', reports: 'Reading reports', menu: 'In the menu', profile: 'In the profile',
+};
+export const stepWords = (s) => STEP[s] || (s ? s.replace(/_/g, ' ') : '—');
+
 export function Search({ value, onChange, placeholder }) {
   return <input className="input !py-2 text-sm sm:max-w-xs" type="search" value={value} placeholder={placeholder}
     onChange={(e) => onChange(e.target.value)} />;

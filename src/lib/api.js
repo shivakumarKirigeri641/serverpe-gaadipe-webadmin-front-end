@@ -7,7 +7,7 @@
  * session has ended.
  */
 
-import { available as secureAvailable, secureCall } from './secure';
+import { available as secureAvailable, secureCall, secureStream } from './secure';
 
 const BASE = (import.meta.env.VITE_API_BASE || '').replace(/\/$/, '');
 const P = `${BASE}/admin/api`;
@@ -56,6 +56,22 @@ async function call(path, { method = 'GET', body, auth = true, quiet = false, ti
   }
   if (!ok) throw new ApiError(data.message || 'Something went wrong.', { code: data.error || 'error', status, body: data });
   return data;
+}
+
+/**
+ * The live stream (lib/live.jsx). Encrypted where the browser can (HTTPS or
+ * localhost); returns false where it cannot, and the caller falls back to polling.
+ */
+export async function stream({ onMessage, signal }) {
+  if (!secureAvailable()) return false;
+  const token = getToken();
+  try {
+    await secureStream(P, { headers: token ? { Authorization: `Bearer ${token}` } : {}, onMessage, signal });
+  } catch (e) {
+    if (e.status === 401 && e.code === 'signed_out') signedOut();
+    throw e;
+  }
+  return true;
 }
 
 const qs = (params = {}) => {
@@ -107,6 +123,7 @@ export const api = {
   mySessions: () => call('/web/me/sessions'),
   endMySessions: (which) => call(`/web/me/sessions/${which}/end`, { method: 'POST', body: {} }),
   presence: (screen, entity) => call('/web/presence', { method: 'POST', body: { screen, entity }, quiet: true }),
+  live: (quiet) => call('/web/live', { quiet }),
 
   log: (params, quiet) => call(`/web/log${qs(params)}`, { quiet }),
   emails: (quiet) => call('/web/emails', { quiet }),

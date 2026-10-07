@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useLive } from '../lib/live.jsx';
 import { api } from '../lib/api';
 import { useLoad } from '../lib/useLoad';
 import { useRange } from '../components/Layout.jsx';
@@ -55,7 +56,80 @@ function say(r) {
   }
 }
 
+/* ── THE LIVE FEED (spec §13): the stream's events as they arrive, in words ── */
+const LIVE_KINDS = [
+  ['', 'Everything'], ['users', '👀 Visitors'], ['auth', '🔐 Sign-in'], ['vehicles', '🔎 Vehicles'], ['payments', '💳 Payments'],
+  ['api', '🔌 API'], ['errors', '⛔ Errors'], ['reports', '📄 Reports'], ['alerts', '🔔 Alerts'],
+];
+const inGroup = (i, g) => !g || (g === 'users' && ['visit', 'page', 'interaction'].includes(i.kind)) || (g === 'auth' && i.kind === 'signin')
+  || (g === 'vehicles' && ['check', 'chat'].includes(i.kind)) || (g === 'payments' && i.kind === 'payment') || (g === 'api' && i.kind === 'api')
+  || (g === 'errors' && i.ok === false) || (g === 'reports' && (i.kind === 'report' || i.name === 'full_view')) || (g === 'alerts' && i.kind === 'alert');
+
+export function sayLive(i) {
+  const who = i.mobile ? ` · ${i.mobile}` : '';
+  const reg = i.reg_no ? ` ${i.reg_no}` : '';
+  switch (i.kind) {
+    case 'visit': return ['👀', `New visit${i.source ? ` from ${i.source.replace(/_/g, ' ')}` : ''}`, i.page];
+    case 'page': return ['📄', `Opened ${i.page || 'a page'}`, ''];
+    case 'interaction': return [i.ikind === 'error' ? '⚠️' : i.ikind === 'focus' ? '⌨️' : i.ikind === 'search' ? '🔎' : '👆', i.label || 'Tapped', i.section ? `on ${i.section}` : (i.page || '')];
+    case 'signin': return [i.ok ? '🔐' : '⛔', `${{ code_requested: 'Asked for a sign-in code', signed_in: 'Signed in', signed_out: 'Signed out', sign_in_failed: 'Sign-in failed', code_refused: 'Code refused' }[i.name] || i.name}${who}`, i.detail];
+    case 'chat': return [i.ok ? '🆓' : '⚠️', `Free check in the chat:${reg} — ${i.ok ? 'found' : 'not found / failed'}`, ''];
+    case 'check': return i.name === 'full_view' ? ['📑', `Opened the full report of${reg}${who}`, ''] : [i.ok ? '🔎' : '⚠️', `Checked${reg}${who} — ${i.ok ? 'found' : 'not found / failed'}`, i.detail];
+    case 'payment': return i.name === 'payment_success' ? ['✅', `Payment received ₹${Math.round((i.amount_paise || 0) / 100)}${reg ? ` for${reg}` : ''}${who}`, i.detail]
+      : ['💳', `Payment started ₹${Math.round((i.amount_paise || 0) / 100)}${reg ? ` for${reg}` : ''}${who}`, i.detail];
+    case 'api': return ['🔌', `API failed${reg}`, i.detail];
+    case 'alert': return [{ critical: '🔴', warning: '🟠', success: '🟢' }[i.severity] || '🔵', `Alert: ${i.detail}`, i.count > 1 ? `×${i.count}` : ''];
+    case 'report': return ['📄', i.name.replace(/_/g, ' '), reg];
+    default: return ['•', (i.name || '').replace(/_/g, ' '), i.detail || ''];
+  }
+}
+
+function LiveFeed() {
+  const { feed, conn } = useLive();
+  const [g, setG] = useState('');
+  const [paused, setPaused] = useState(false);
+  const [frozen, setFrozen] = useState([]);
+  useEffect(() => { if (!paused) setFrozen(feed); }, [feed, paused]);
+  const rows = frozen.filter((i) => inGroup(i, g));
+  return (
+    <>
+      <div className="mt-3 flex flex-wrap items-center gap-1.5">
+        {LIVE_KINDS.map(([k, l]) => (
+          <button key={k} onClick={() => setG(k)} className={`chip shrink-0 border !px-2.5 !py-1 ${g === k ? 'border-brand bg-brand text-white' : 'border-line bg-white text-body'}`}>{l}</button>))}
+        <button onClick={() => setPaused((v) => !v)} className="btn-quiet ml-auto !px-3 !py-1 text-2xs">{paused ? '▶ Resume' : '⏸ Pause'}</button>
+      </div>
+      <p className="mt-1 text-2xs text-muted">{conn.mode === 'poll' ? 'This browser cannot stream — use History.' : `Live since this page opened · ${rows.length} event${rows.length === 1 ? '' : 's'}${paused ? ' · paused' : ''}`}</p>
+      <ol className="card mt-2 divide-y divide-line">
+        {rows.length ? rows.map((i) => {
+          const [icon, text, sub] = sayLive(i);
+          return (
+            <li key={i.key} className={`rise flex gap-3 px-4 py-2 ${i.ok === false ? 'bg-wrong-50/60' : ''}`}>
+              <span className="tabular w-16 shrink-0 pt-0.5 text-2xs text-muted">{new Date(i.at).toLocaleTimeString('en-IN', { timeZone: 'Asia/Kolkata', hour: '2-digit', minute: '2-digit', second: '2-digit' })}</span>
+              <span className="w-5 shrink-0 text-center">{icon}</span>
+              <span className="min-w-0 flex-1 text-sm"><span className={i.ok === false ? 'font-semibold text-wrong-700' : 'text-ink'}>{text}</span>
+                {sub ? <span className="block break-words text-2xs text-muted">{sub}</span> : null}</span>
+            </li>);
+        }) : <li className="px-4 py-8 text-center text-sm text-muted">Waiting for the next event…</li>}
+      </ol>
+    </>
+  );
+}
+
 export default function Log() {
+  const [tab, setTab] = useState('live');
+  return (
+    <>
+      <div className="flex flex-wrap items-center gap-2">
+        <h1 className="mr-2 text-lg font-semibold">Event stream</h1>
+        {[['live', '● Live'], ['history', 'History']].map(([k, l]) => (
+          <button key={k} onClick={() => setTab(k)} className={`chip border !px-3 !py-1 ${tab === k ? 'border-ink bg-ink text-white' : 'border-line bg-white'}`}>{l}</button>))}
+      </div>
+      {tab === 'live' ? <LiveFeed /> : <History />}
+    </>
+  );
+}
+
+function History() {
   const [range] = useRange();
   const [kind, setKind] = useState('');
   const [pages, setPages] = useState(false);
@@ -70,7 +144,7 @@ export default function Log() {
     <>
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="text-lg font-semibold">Log</h1>
+          <h2 className="text-[15px] font-semibold">History</h2>
           <p className="text-2xs text-muted">Every event and trigger on the website, newest first. Red means something went wrong.</p>
         </div>
         <Search value={q} onChange={setQ} placeholder="Mobile, vehicle or text" />

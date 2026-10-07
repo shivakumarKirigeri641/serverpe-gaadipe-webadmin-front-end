@@ -77,6 +77,44 @@ async function open(key, text) {
 }
 
 /**
+ * THE LIVE STREAM (2026-10-07): one long POST to /_s, checked by the server like
+ * any call, whose answer stays open; every event arrives as "d: <sealed>" and is
+ * opened here with this page's key. Resolves when the stream ends (the server
+ * closes it every 20 minutes so the key is renewed); throws on failure — the
+ * caller reconnects. `onMessage` gets each decrypted object.
+ */
+export async function secureStream(base, { headers = {}, onMessage, signal }) {
+  let s = await session(base);
+  if (Date.now() > s.renewAt - 5 * 60000) s = await session(base, true);    // a stream outlives a call: start with a fresh key
+  const d = await seal(s.key, { t: Date.now() + s.offset, n: nonce() });
+  const res = await fetch(`${base}/_s`, {
+    method: 'POST', signal,
+    headers: { ...headers, 'Content-Type': 'application/json', 'X-GP-K': s.k, 'X-GP-D': deviceKey() },
+    body: JSON.stringify({ d }),
+  });
+  if (!res.ok || !res.body) {
+    const raw = await res.json().catch(() => ({}));
+    if (raw?.error === 'rekey') sessions.delete(base);
+    const err = new Error(raw?.error || `stream ${res.status}`); err.status = res.status; err.code = raw?.error;
+    throw err;
+  }
+  const reader = res.body.getReader();
+  let buf = '';
+  for (;;) {
+    const { value, done } = await reader.read();
+    if (done) return;
+    buf += dec.decode(value, { stream: true });
+    let i;
+    while ((i = buf.indexOf('\n\n')) >= 0) {
+      const part = buf.slice(0, i); buf = buf.slice(i + 2);
+      if (part.startsWith('d: ')) {
+        try { onMessage(await open(s.key, part.slice(3))); } catch { /* a damaged frame is skipped */ }
+      }
+    }
+  }
+}
+
+/**
  * One call through the tunnel. Returns { status, data } like a fetch you have
  * already read, so the caller keeps its own status handling.
  */

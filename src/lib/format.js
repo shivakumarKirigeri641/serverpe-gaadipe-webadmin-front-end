@@ -31,5 +31,29 @@ const SOURCES = {
 };
 export const sourceOf = (s) => SOURCES[s] || { label: s || 'Unknown', color: '#94a3b8' };
 
+/*
+ * READABLE IDS (spec §67–68): what the panel shows and searches for. Each maps
+ * one-to-one to the id in the database, so a search finds the row.
+ *   GP-C-000123              a customer (users.id)
+ *   GP-S-20261007-K3F9QX     a website visit (web_sessions.session_id, its start day)
+ *   GP-D-8F4K29              a browser (visitors.visitor_id)
+ *   GP-T-44                  a payment (payments.id)
+ */
+export const customerCode = (id) => (id ? `GP-C-${String(id).padStart(6, '0')}` : null);
+export const sessionCode = (sid, started) => {
+  if (!sid) return null;
+  const d = started ? new Date(new Date(started).getTime() + 5.5 * 3600e3).toISOString().slice(0, 10).replace(/-/g, '') : '';
+  return `GP-S-${d ? `${d}-` : ''}${String(sid).replace(/^s_/, '').slice(0, 6).toUpperCase()}`;
+};
+export const deviceCode = (vid) => (vid ? `GP-D-${String(vid).replace(/^v_/, '').slice(0, 6).toUpperCase()}` : null);
+export const paymentCode = (id) => (id ? `GP-T-${id}` : null);
+
+export function duration(fromIso, to = Date.now()) {
+  if (!fromIso) return '—';
+  const s = Math.max(0, Math.round((to - new Date(fromIso).getTime()) / 1000));
+  const h = Math.floor(s / 3600); const m = Math.floor((s % 3600) / 60); const r = s % 60;
+  return h ? `${h}h ${String(m).padStart(2, '0')}m` : `${String(m).padStart(2, '0')}m ${String(r).padStart(2, '0')}s`;
+}
+
 export const placeOf = (p) => [p?.city, p?.region].filter(Boolean).join(', ') || p?.country || '—';
 export const deviceOf = (d) => [d?.device_type, d?.os, d?.browser].filter(Boolean).join(' · ') || '—';

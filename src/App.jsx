@@ -1,6 +1,8 @@
 import { Navigate, Route, Routes } from 'react-router-dom';
 import { useSession } from './lib/session.jsx';
 import { PrefsProvider } from './lib/prefs.jsx';
+import { LiveProvider } from './lib/live.jsx';
+import Live from './pages/Live.jsx';
 import Layout from './components/Layout.jsx';
 import SignIn from './pages/SignIn.jsx';
 import Overview from './pages/Overview.jsx';
@@ -31,10 +33,11 @@ export default function App() {
   if (!ready) return <div className="grid min-h-screen place-items-center text-sm text-muted">Loading…</div>;
   if (!me) return <SignIn />;
   return (
-    <PrefsProvider>
+    <PrefsProvider><LiveProvider>
       <Layout>
         <Routes>
           <Route path="/" element={<Overview />} />
+          <Route path="/live" element={<Live />} />
           <Route path="/log" element={<Log />} />
           <Route path="/customers" element={<Customers />} />
           <Route path="/visitors" element={<Visitors />} />
@@ -54,6 +57,6 @@ export default function App() {
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </Layout>
-    </PrefsProvider>
+    </LiveProvider></PrefsProvider>
   );
 }

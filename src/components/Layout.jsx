@@ -3,7 +3,8 @@ import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { useSession } from '../lib/session.jsx';
 import { usePrefs } from '../lib/prefs.jsx';
 import { api } from '../lib/api';
-import { playMost } from '../lib/sound';
+import { play, playMost } from '../lib/sound';
+import { useLive } from '../lib/live.jsx';
 
 /* The period every screen shows; remembered on this device. */
 const RangeCtx = createContext(['today', () => {}]);
@@ -50,7 +51,7 @@ export const NAV = [
     ['/settings', 'Settings', '⚙️'],
   ]],
 ];
-export const AVAILABLE = new Set(['/', '/log', '/customers', '/visitors', '/free-checks', '/payments', '/reports', '/referrals', '/sources',
+export const AVAILABLE = new Set(['/', '/live', '/log', '/customers', '/visitors', '/free-checks', '/payments', '/reports', '/referrals', '/sources',
   '/api', '/health', '/alerts', '/audit', '/emails', '/admins', '/settings', '/search']);
 
 function useClock() {
@@ -99,7 +100,22 @@ export default function Layout({ children }) {
       setConn((c) => ({ ...c, failures: c.failures + 1, state: c.failures + 1 >= 3 ? 'offline' : 'reconnecting' }));
     }
   }, [prefs.sound, prefs.desktop]);
-  useEffect(() => { loadAlerts(); const t = setInterval(loadAlerts, 20000); return () => clearInterval(t); }, [loadAlerts]);
+  // The stream says the moment an alert is raised or repeats; this poll is the backstop.
+  useEffect(() => { loadAlerts(); const t = setInterval(loadAlerts, 60000); return () => clearInterval(t); }, [loadAlerts]);
+
+  /* ── live: alerts at once; a payment's success chime and notice (spec §100) ── */
+  const live = useLive();
+  useEffect(() => live?.onItems((items) => {
+    if (items.some((i) => i.kind === 'alert')) loadAlerts();
+    const paid = items.filter((i) => i.name === 'payment_success');
+    if (paid.length) {
+      play('success', prefs.sound);
+      if (prefs.desktop && 'Notification' in window && Notification.permission === 'granted' && document.visibilityState !== 'visible') {
+        const p = paid.at(-1);
+        try { new Notification('GaadiPe · Payment received', { body: `₹${Math.round((p.amount_paise || 0) / 100)}${p.reg_no ? ` for ${p.reg_no}` : ''}${paid.length > 1 ? ` (+${paid.length - 1} more)` : ''}`, tag: `pay-${p.payment_id}` }); } catch { /* not allowed */ }
+      }
+    }
+  }), [live, loadAlerts, prefs.sound, prefs.desktop]);
 
   /* ── where this admin is (presence, §93) ── */
   useEffect(() => { api.presence(pathname).catch(() => {}); }, [pathname]);
@@ -122,10 +138,13 @@ export default function Layout({ children }) {
     return () => { clearInterval(t); evs.forEach((e) => window.removeEventListener(e, bump)); };
   }, [prefs.lockMinutes, signOut]);
 
-  const staleFor = Math.round((now.getTime() - conn.at) / 1000);
-  const live = conn.state === 'offline' ? ['OFFLINE', 'bg-wrong-50 text-wrong-700']
-    : conn.state === 'reconnecting' ? ['RECONNECTING', 'bg-watch-50 text-watch-700']
-      : staleFor > 60 ? [`STALE · ${staleFor}s`, 'bg-watch-50 text-watch-700'] : ['LIVE', 'bg-good-50 text-good-700'];
+  // The line's state is the stream's when there is one (pings every 10 s), else the alert poll's.
+  const lc = live?.conn?.at ? live.conn : conn;
+  const staleFor = Math.round((now.getTime() - (lc.at || 0)) / 1000);
+  const liveChip = lc.state === 'offline' ? ['OFFLINE', 'bg-wrong-50 text-wrong-700']
+    : lc.state === 'reconnecting' || !lc.at ? ['RECONNECTING', 'bg-watch-50 text-watch-700']
+      : staleFor > 25 ? [`STALE · ${staleFor}s`, 'bg-watch-50 text-watch-700'] : ['LIVE', 'bg-good-50 text-good-700'];
+  const activeNow = live?.presence?.counts?.active;
   const allowedNav = NAV.map(([g, items]) => [g, items.filter(([to, , , need]) => AVAILABLE.has(to) && (!need || can.includes(need)))]).filter(([, items]) => items.length);
   const go = (e) => { e.preventDefault(); if (q.trim()) { navigate(`/search?q=${encodeURIComponent(q.trim())}`); setQ(''); } };
 
@@ -168,8 +187,11 @@ export default function Layout({ children }) {
                 <input className="input !py-1.5 text-sm" type="search" value={q} onChange={(e) => setQ(e.target.value)}
                   placeholder="Search mobile, vehicle, GP-… id, report, payment" aria-label="Search everything" />
               </form>
-              <span className={`chip hidden sm:inline-flex ${live[1]}`} title={`Last answer from the server ${staleFor}s ago`}>
-                {live[0] === 'LIVE' ? <span className="live-dot h-1.5 w-1.5 rounded-full bg-good-500" /> : null}{live[0]}
+              <button type="button" onClick={() => navigate('/live')} className="chip hidden border border-good-500/30 bg-white !px-2.5 !py-1 text-ink sm:inline-flex" title="On gaadipe.in now — open Live users">
+                🟢 <b className="tabular">{activeNow ?? '…'}</b> online
+              </button>
+              <span className={`chip ${liveChip[1]}`} title={`Last word from the server ${staleFor}s ago`}>
+                {liveChip[0] === 'LIVE' ? <span className="live-dot h-1.5 w-1.5 rounded-full bg-good-500" /> : null}{liveChip[0]}
               </span>
               <button type="button" onClick={() => navigate('/alerts')} className="relative rounded-lg px-2 py-1.5 hover:bg-shell" aria-label="Alerts">
                 🔔
@@ -204,11 +226,15 @@ export default function Layout({ children }) {
             </div>
           </header>
 
+          {lc.state === 'offline' || (lc.at && staleFor > 25) ? (
+            <div className="border-b border-watch-500/30 bg-watch-50 px-4 py-1.5 text-center text-2xs font-semibold text-watch-700" role="status">
+              {lc.state === 'offline' ? 'Live connection lost. Reconnecting…' : `No live update for ${staleFor} s — figures may be out of date.`}
+            </div>) : null}
           <main className="mx-auto max-w-6xl px-4 py-5 pb-24 lg:pb-8">{children}</main>
 
           {/* Phones: the main screens at the thumb, the rest under More. */}
           <nav className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-5 border-t border-line bg-white lg:hidden">
-            {[['/', 'Overview', '📊'], ['/customers', 'Customers', '👤'], ['/payments', 'Payments', '💳'], ['/alerts', 'Alerts', '🔔']].map(([to, label, icon]) => (
+            {[['/', 'Overview', '📊'], ['/live', 'Live', '🟢'], ['/customers', 'Customers', '👤'], ['/alerts', 'Alerts', '🔔']].map(([to, label, icon]) => (
               <NavLink key={to} to={to} end={to === '/'}
                 className={({ isActive }) => `flex flex-col items-center gap-0.5 py-2 text-[10px] font-medium ${isActive ? 'text-brand' : 'text-muted'}`}>
                 <span className="text-lg leading-none">{icon}</span>{label}
