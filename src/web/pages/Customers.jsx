@@ -4,6 +4,7 @@ import { api } from '../lib/api';
 import { useLoad } from '../lib/useLoad';
 import { useRange } from '../components/Layout.jsx';
 import { Search, SourceChip, Stat, State, Table } from '../components/ui.jsx';
+import JustCame from '../components/JustCame.jsx';
 import { ago, dateTime, num, placeOf, rupees } from '../lib/format';
 
 /**
@@ -36,6 +37,7 @@ export default function Customers() {
 
   return (
     <>
+      <JustCame />
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <h1 className="text-lg font-semibold">Customers</h1>

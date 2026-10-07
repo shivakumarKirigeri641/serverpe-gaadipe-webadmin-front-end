@@ -9,6 +9,7 @@ import { Row as SignInRow, Detail as SignInDetail } from './SignIns.jsx';
 import { SessionsTable, VisitSummary } from '../components/Sessions.jsx';
 import { Table, Hint, Chip, Modal, Empty, Spinner, Failed, Banner, openBlob, saveBlob, Pager, PAGE_SIZE } from '../components/ui.jsx';
 import { useSession, allowed } from '../lib/session';
+import JustCame from '../web/components/JustCame.jsx';
 
 /**
  * Every customer, one row each, and everything about one of them on a tap.
@@ -136,6 +137,7 @@ export default function Customers() {
             }}>{exporting ? 'Exporting…' : 'Export CSV'}</button>
         </div>
       }>
+      <JustCame />
 
       {/* Today at a glance (user, 2026-09-26): IST day, whatever the filter. */}
       {data?.today && (
