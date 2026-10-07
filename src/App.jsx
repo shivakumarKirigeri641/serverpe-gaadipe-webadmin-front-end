@@ -8,6 +8,9 @@ import SessionRoom from './pages/SessionRoom.jsx';
 import CustomerRoom from './pages/CustomerRoom.jsx';
 import Analytics from './pages/Analytics.jsx';
 import Privacy from './pages/Privacy.jsx';
+import Leads from './pages/Leads.jsx';
+import Insights from './pages/Insights.jsx';
+import Vehicles from './pages/Vehicles.jsx';
 import Layout from './components/Layout.jsx';
 import SignIn from './pages/SignIn.jsx';
 import Overview from './pages/Overview.jsx';
@@ -63,6 +66,10 @@ export default function App() {
           <Route path="/admins" element={<Admins />} />
           <Route path="/settings" element={<Settings />} />
           <Route path="/privacy" element={<Privacy />} />
+          <Route path="/leads" element={<Leads />} />
+          <Route path="/insights" element={<Insights />} />
+          <Route path="/vehicles" element={<Vehicles />} />
+          <Route path="/vehicles/:reg" element={<Vehicles />} />
           <Route path="/search" element={<Search />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>

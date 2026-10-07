@@ -31,6 +31,7 @@ export const NAV = [
     ['/visitors', 'Visitors', '👀'],
     ['/leads', 'Leads & drop-offs', '🔥'],
     ['/free-checks', 'Free checks', '🆓'],
+    ['/vehicles', 'Vehicles', '🚗'],
   ]],
   ['Business', [
     ['/payments', 'Payments', '💳'],
@@ -38,6 +39,7 @@ export const NAV = [
     ['/referrals', 'Referrals', '🤝'],
     ['/sources', 'Ads & sources', '📣'],
     ['/analytics', 'Live analytics', '📈'],
+    ['/insights', 'Insights', '💡'],
   ]],
   ['System', [
     ['/api', 'API monitor', '🔌'],
@@ -52,8 +54,8 @@ export const NAV = [
     ['/settings', 'Settings', '⚙️'],
   ]],
 ];
-export const AVAILABLE = new Set(['/', '/live', '/log', '/customers', '/sessions', '/visitors', '/free-checks', '/payments', '/reports', '/referrals', '/sources', '/analytics',
-  '/api', '/health', '/alerts', '/audit', '/emails', '/admins', '/settings', '/privacy', '/search']);
+// Every screen in the menu exists now (all phases built).
+export const AVAILABLE = new Set([...NAV.flatMap(([, items]) => items.map(([to]) => to)), '/search']);
 
 function useClock() {
   const [now, setNow] = useState(() => new Date());
@@ -120,10 +122,13 @@ export default function Layout({ children }) {
 
   /* ── is optional monitoring on? (§98) — always visible, so nobody assumes it is ── */
   const [mon, setMon] = useState(null);
+  // Once a minute, and straight after any switch changes (not on every screen change — the server's loop guard).
   useEffect(() => {
     const load = () => api.monitoring({}, true).then(setMon).catch(() => {});
-    load(); const t = setInterval(load, 60000); return () => clearInterval(t);
-  }, [pathname]);
+    load(); const t = setInterval(load, 60000);
+    window.addEventListener('webadmin:monitoring', load);
+    return () => { clearInterval(t); window.removeEventListener('webadmin:monitoring', load); };
+  }, []);
 
   /* ── where this admin is (presence, §93) ── */
   useEffect(() => { api.presence(pathname).catch(() => {}); }, [pathname]);

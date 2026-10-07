@@ -5,6 +5,7 @@ import { useLoad } from '../lib/useLoad';
 import { useRange } from '../components/Layout.jsx';
 import { Section, SourceChip, Stat, State } from '../components/ui.jsx';
 import { num, pct, rupees, time } from '../lib/format';
+import { InsightList } from './Insights.jsx';
 
 const PERIOD = { today: 'today', '7d': 'in 7 days', '30d': 'in 30 days' };
 
@@ -34,6 +35,10 @@ export default function Overview() {
             <Stat label="Signed-in checks" value={num(t.web_checks)} sub="checks after signing in" />
             <Stat label="Notifications on" value={num(t.push_customers)} sub={`${num(t.push_devices)} phone${t.push_devices === 1 ? '' : 's'} · all time`} />
           </div>
+
+          <Section title="What the numbers say" right={<Link to="/insights" className="text-2xs font-semibold text-brand">All insights →</Link>}>
+            <InsightList range={range} />
+          </Section>
 
           <Section title="From visit to payment" hint={`Each step ${PERIOD[range]}, and how many of the first step reached it`}>
             <div className="card divide-y divide-line">
