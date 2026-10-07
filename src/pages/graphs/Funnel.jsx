@@ -5,8 +5,8 @@ import { AnimatedGauge } from '../../lib/motion.jsx';
 import { SERIES, AXIS, anim, Card, Drill, People, Stats, Gauges, drill } from './kit.jsx';
 
 /*
- * The funnel: people at each step in the period, as horizontal bars from the
- * first "hi" down to "Paid", each with the share that went on from the step
+ * The website funnel (2026-10-07): visits at each step in the period, as horizontal bars from the
+ * visit down to the report, each with the share that went on from the step
  * before. Click a step: who reached it and went no further.
  */
 export default function Funnel({ data, days }) {
@@ -15,7 +15,7 @@ export default function Funnel({ data, days }) {
     from_prev: i && all[i - 1].people ? Math.round((s.people / all[i - 1].people) * 100) : null,
   }));
   const first = steps[0]?.people || 0;
-  const paid = steps[steps.length - 1]?.people || 0;
+  const paid = steps.find((x) => x.key === 'paid')?.people || 0;
   const [step, setStep] = useState(null);
   const [people, setPeople] = useState(null);
   const open = (s) => {
@@ -30,9 +30,9 @@ export default function Funnel({ data, days }) {
     return (
       <div className="rounded-xl border border-line bg-white px-3 py-2 text-2xs shadow-lg">
         <div className="font-semibold text-ink">{s.label}</div>
-        <div className="text-body"><b className="tabular text-ink">{count(s.people)}</b> people</div>
+        <div className="text-body"><b className="tabular text-ink">{count(s.people)}</b> visits</div>
         {s.from_prev != null && <div className="text-body">{s.from_prev}% of the step before</div>}
-        {first > 0 && <div className="text-muted">{Math.round((s.people / first) * 100)}% of everyone who said hi</div>}
+        {first > 0 && <div className="text-muted">{Math.round((s.people / first) * 100)}% of all visits</div>}
         {s.key !== 'paid' && <div className="mt-1 text-[10px] text-muted">Click: who stopped here</div>}
       </div>
     );
@@ -41,9 +41,9 @@ export default function Funnel({ data, days }) {
   return (
     <>
       <Stats items={[
-        ['Said hi', count(first), `in ${data.days} days`],
-        ['Paid', count(paid), 'people'],
-        ['Hi → paid', first ? `${Math.round((paid / first) * 1000) / 10}%` : '—', 'conversion'],
+        ['Visits', count(first), `in ${data.days} days`],
+        ['Paid', count(paid), 'visits that paid'],
+        ['Visit → paid', first ? `${Math.round((paid / first) * 1000) / 10}%` : '—', 'conversion'],
       ]} />
       {(() => {
         const conv = first ? Math.round((paid / first) * 1000) / 10 : null;
@@ -52,11 +52,11 @@ export default function Funnel({ data, days }) {
           <Gauges>
             <AnimatedGauge label="Conversion" value={conv} max={top} danger="low" bands={[0.4, 0.2]}
               text={conv == null ? null : `${conv}%`} tone={conv == null ? 'muted' : conv >= top * 0.4 ? 'good' : conv >= top * 0.2 ? 'watch' : 'wrong'}
-              caption="Said hi → paid, this period" />
+              caption="Visit → paid, this period" />
           </Gauges>
         );
       })()}
-      <Card title="From hi to paid" note="Different people who reached each step in the period. Click a step to see who stopped there."
+      <Card title="From visit to report" note="Website visits that reached each step in the period. Click a step to see who stopped there."
         height={340}
         table={{ columns: [['label', 'Step'], ['people', 'People'], ['from_prev', 'From the step before', (v) => (v == null ? '—' : `${v}%`)]], rows: steps }}>
         <BarChart data={steps} layout="vertical" margin={{ top: 4, right: 70, left: 20, bottom: 0 }} barCategoryGap={6} maxBarSize={40}>

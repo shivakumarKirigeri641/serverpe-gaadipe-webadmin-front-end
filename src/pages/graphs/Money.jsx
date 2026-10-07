@@ -7,7 +7,7 @@ import { SERIES, AXIS, GRID, anim, Card, Tip, Drill, Stats, Gauges, drill, dayLa
 
 /*
  * Money: where each day's revenue went — GST, the gateway's fee, the vehicle
- * APIs, WhatsApp, ads — and what was left. Stacked so the parts add up to the
+ * APIs, SMS, ads — and what was left. Stacked so the parts add up to the
  * revenue; a click on a day lists its payments.
  */
 const PARTS = [
@@ -15,7 +15,7 @@ const PARTS = [
   ['gst', 'GST', SERIES[0]],
   ['gateway', 'Gateway fee', SERIES[3]],
   ['api', 'Vehicle APIs', SERIES[1]],
-  ['whatsapp', 'WhatsApp', SERIES[4]],
+  ['sms', 'SMS', SERIES[4]],
   ['ads', 'Ads', SERIES[6]],
 ];
 
@@ -39,7 +39,7 @@ export default function Money({ data }) {
       <Stats items={[
         ['Revenue', inr(gross), `${sumOf(data.series, 'payments')} payments`],
         ['Left with you', inr(totals.left), gross ? `${Math.round((totals.left / gross) * 100)}% of revenue` : ''],
-        ['GST', inr(totals.gst)], ['Costs', inr(totals.gateway + totals.api + totals.whatsapp), 'gateway · APIs · WhatsApp'],
+        ['GST', inr(totals.gst)], ['Costs', inr(totals.gateway + totals.api + totals.sms), 'gateway · APIs · SMS'],
         ['Ads', inr(totals.ads)],
       ]} />
       {(() => {
@@ -48,7 +48,7 @@ export default function Money({ data }) {
           <Gauges>
             <AnimatedGauge label="Margin" value={m == null ? null : Math.max(0, m)} max={100} danger="low" bands={[0.5, 0.25]}
               text={m == null ? null : `${m}%`} tone={m == null ? 'muted' : m >= 50 ? 'good' : m >= 25 ? 'watch' : 'wrong'}
-              caption="Left with you ÷ revenue, after GST, fees, APIs, WhatsApp and ads" />
+              caption="Left with you ÷ revenue, after GST, fees, APIs, SMS and ads" />
           </Gauges>
         );
       })()}
@@ -76,7 +76,7 @@ export default function Money({ data }) {
             </Pie>
           </PieChart>
         </Card>
-        <Card className="lg:col-span-3" title="Revenue and what is left" note="Revenue each day against what is left after GST, fees, APIs, WhatsApp and ads."
+        <Card className="lg:col-span-3" title="Revenue and what is left" note="Revenue each day against what is left after GST, fees, APIs, SMS and ads."
           legend={[['Revenue', SERIES[0]], ['Left with you', SERIES[2]]]} table={table} height={220}>
           <AreaChart data={data.series} onClick={open} margin={{ top: 4, right: 8, left: -6, bottom: 0 }}>
             <CartesianGrid {...GRID} /><XAxis {...xProps} /><YAxis tickFormatter={rupeeAxis} tick={AXIS} tickLine={false} axisLine={false} />
