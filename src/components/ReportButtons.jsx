@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { api } from '../lib/api';
 import { useSession, allowed } from '../lib/session';
 import { openBlob, saveBlob } from './ui.jsx';
+import ReportCard from './ReportCard.jsx';
 
 /*
  * A REPORT'S TWO VIEWS, everywhere a report is listed (user, 2026-10-07):
@@ -14,6 +15,7 @@ import { openBlob, saveBlob } from './ui.jsx';
 export default function ReportButtons({ id, hasPdf = true, compact = false }) {
   const { can } = useSession();
   const [busy, setBusy] = useState(null);
+  const [card, setCard] = useState(false);       // 🪪 the flip card (2026-10-08)
   const mayOpen = allowed(can, 'vehicles.view_sensitive');
   if (!id) return null;
   const get = async (kind, download = false) => {
@@ -36,6 +38,11 @@ export default function ReportButtons({ id, hasPdf = true, compact = false }) {
           title="ADMIN COPY — every detail as stored, unmasked. Never sent to the customer; logged." onClick={() => get('admin')}>
           {busy === 'admin' ? '…' : '🔓 Admin view'}
         </button>) : null}
+      {/* Its own button — the two PDF views above are unchanged. */}
+      <button type="button" className={`btn-quiet ${size}`} title="The report as the customer's flip card — swipe or Flip to turn it" onClick={() => setCard(true)}>
+        🪪 Card
+      </button>
+      {card ? <ReportCard id={id} onClose={() => setCard(false)} /> : null}
     </span>
   );
 }
