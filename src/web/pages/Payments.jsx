@@ -9,6 +9,7 @@ import { ago, dateTime, num, rupees } from '../lib/format';
 /* WHY A TRY FAILED, in Razorpay's words made plain (2026-10-08: "is it a time out?"). */
 const FAIL_WORDS = {
   payment_timeout: 'timed out — the customer did not finish in time',
+  payment_timed_out: 'timed out — the customer did not finish in time',
   payment_cancelled: 'cancelled by the customer',
   payment_failed: 'declined by the bank / UPI app',
   incorrect_pin: 'wrong UPI PIN / card PIN',

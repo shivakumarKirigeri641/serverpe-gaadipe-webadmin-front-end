@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api, getToken } from '../lib/api';
-import { chime, soundOn } from '../lib/sound';
+import { chime, soundOn, soundBlocked, onSoundBlocked, checkSound } from '../lib/sound';
 
 /**
  * WHAT THE PANEL HEARS WHILE IT IS OPEN (user, 2026-09-25, command center
@@ -328,6 +328,28 @@ function StarShower({ s }) {
   );
 }
 
+/*
+ * SOUND IS ASLEEP (user, 2026-10-08: "not getting sound"). Browsers keep a page
+ * silent until it is clicked, and again after the PC locks or sleeps. Say so,
+ * small, bottom left — one click anywhere wakes it and the hint goes.
+ */
+function SoundHint() {
+  const [off, setOff] = useState(soundBlocked());
+  useEffect(() => {
+    const stop = onSoundBlocked(setOff);
+    checkSound();
+    const t = setInterval(checkSound, 15000);
+    return () => { stop(); clearInterval(t); };
+  }, []);
+  if (!off) return null;
+  return (
+    <button type="button" className="no-print fixed bottom-4 left-4 z-50 rounded-full border border-watch-500/50 bg-watch-50 px-3 py-1.5 text-2xs font-semibold text-watch-700 shadow"
+      onClick={() => chime({ kind: 'recovered' }, { force: true })}>
+      🔇 Sound is asleep — click anywhere to turn it on
+    </button>
+  );
+}
+
 /** The pop-ups, bottom right. A tap opens what it is about. */
 export function Toasts() {
   const { toasts, party, milestone, starParty } = useLive();
@@ -339,6 +361,7 @@ export function Toasts() {
     : '/alerts');
   return (
     <>
+    <SoundHint />
     <Confetti at={party} />
     <StarShower s={starParty} />
     {milestone && <Celebration m={milestone} />}

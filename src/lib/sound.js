@@ -25,15 +25,35 @@ function audio() {
     if (!AC) return null;
     ctx = new AC();
   }
-  if (ctx.state === 'suspended') ctx.resume().catch(() => {});
+  if (ctx.state !== 'running') ctx.resume().catch(() => {});
   return ctx;
 }
 
-// The first click or key press on the page unlocks sound for the session.
+/*
+ * NO SOUND (user, 2026-10-08). The browser suspends audio again after the PC
+ * locks or sleeps, and a chime used to be dropped silently whenever the
+ * context was not already running — and the page listened for one click only,
+ * so it never woke up again. Now every click or key press wakes it, a chime
+ * waits for the wake-up instead of giving up, and when the browser still says
+ * no the panel is told (soundBlocked), so it can ask for a click.
+ */
+let blocked = false;
+const blockedListeners = new Set();
+const setBlocked = (v) => { if (blocked !== v) { blocked = v; blockedListeners.forEach((f) => f(v)); } };
+export const soundBlocked = () => blocked;
+/** Ask the browser whether sound may play yet (for the "tap to turn on" hint). */
+export function checkSound() {
+  if (!soundOn()) { setBlocked(false); return; }
+  const ac = audio();
+  if (ac) setBlocked(ac.state !== 'running');
+}
+export function onSoundBlocked(fn) { blockedListeners.add(fn); return () => blockedListeners.delete(fn); }
+
 if (typeof window !== 'undefined') {
-  const unlock = () => { audio(); window.removeEventListener('pointerdown', unlock); window.removeEventListener('keydown', unlock); };
-  window.addEventListener('pointerdown', unlock);
-  window.addEventListener('keydown', unlock);
+  const wake = () => { const ac = audio(); if (ac) ac.resume().then(() => setBlocked(ac.state !== 'running')).catch(() => {}); };
+  window.addEventListener('pointerdown', wake, true);
+  window.addEventListener('keydown', wake, true);
+  document.addEventListener('visibilitychange', () => { if (!document.hidden && ctx && ctx.state !== 'running') ctx.resume().catch(() => {}); });
 }
 
 /** One bell-like note: a sine with a quieter octave above, fading out. */
@@ -70,14 +90,21 @@ const TUNES = {
   recovered: (ac, out, t) => { bell(ac, out, N.G5, t, { dur: 0.9, gain: 0.16 }); bell(ac, out, N.D6, t + 0.13, { dur: 1.1, gain: 0.16 }); },
   critical: (ac, out, t) => [N.A5, N.E5, N.A4].forEach((f, i) => bell(ac, out, f, t + i * 0.16, { dur: 0.8, gain: 0.2, type: 'triangle' })),
   alert: (ac, out, t) => { bell(ac, out, N.A5, t, { dur: 0.7, gain: 0.15, type: 'triangle' }); bell(ac, out, N.E5, t + 0.16, { dur: 0.9, gain: 0.15, type: 'triangle' }); },
-  hi: (ac, out, t) => bell(ac, out, N.E6, t, { dur: 0.5, gain: 0.07 }),
-  check: (ac, out, t) => bell(ac, out, N.B6, t, { dur: 0.45, gain: 0.06 }),
+  // Twice as loud as before (2026-10-08): at 0.07 they were easy to miss.
+  hi: (ac, out, t) => { bell(ac, out, N.E6, t, { dur: 0.6, gain: 0.15 }); bell(ac, out, N.A5, t + 0.12, { dur: 0.7, gain: 0.12 }); },
+  check: (ac, out, t) => { bell(ac, out, N.B6, t, { dur: 0.5, gain: 0.13 }); bell(ac, out, N.E6, t + 0.1, { dur: 0.6, gain: 0.11 }); },
 };
 const RANK = ['milestone', 'payment', 'star', 'critical', 'alert', 'recovered', 'hi', 'check'];
 
-function play(name) {
+async function play(name) {
   const ac = audio();
-  if (!ac || ac.state !== 'running' || !TUNES[name]) return;
+  if (!ac || !TUNES[name]) return;
+  if (ac.state !== 'running') {
+    // Wait for the wake-up rather than dropping the chime; a second at most.
+    try { await Promise.race([ac.resume(), new Promise((r) => setTimeout(r, 1000))]); } catch { /* still blocked */ }
+  }
+  if (ac.state !== 'running') { setBlocked(true); return; }
+  setBlocked(false);
   const out = ac.createGain(); out.gain.value = 0.9; out.connect(ac.destination);
   TUNES[name](ac, out, ac.currentTime + 0.02);
 }
