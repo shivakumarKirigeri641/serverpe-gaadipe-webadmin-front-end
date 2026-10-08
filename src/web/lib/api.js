@@ -51,6 +51,7 @@ export const api = {
   visitor: (id) => call(`/web/visitors/${encodeURIComponent(id)}`),
   customers: (params, quiet) => call(`/web/customers${qs(params)}`, { quiet }),
   freeChecks: (range, quiet) => call(`/web/free-checks${qs({ range })}`, { quiet }),
+  freeChecksAudit: (days, quiet) => call(`/web/free-checks/audit${qs({ days })}`, { quiet }),
   requestCode: (mobile) => call('/session/otp', { method: 'POST', auth: false, body: { mobile } }),
   verifyCode: (mobile, code) => call('/session/verify', { method: 'POST', auth: false, body: { mobile, code } })
     .catch((e) => { if (e.body && e.status === 401) return e.body; throw e; }),
