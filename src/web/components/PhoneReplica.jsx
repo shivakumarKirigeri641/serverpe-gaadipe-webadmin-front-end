@@ -55,8 +55,10 @@ function Bubble({ it }) {
             {(card.items || []).filter(Boolean).map((x, i) => <div key={i} className="font-mono text-2xs">{x}</div>)}
           </div>
         ) : it.kind === 'terms' ? (
-          <div><div className="font-semibold">📜 Before you sign in</div>
-            <div className="text-2xs">{card?.agreed === 'yes' ? '☑ Agreed to Terms, Privacy and Refund' : '☐ Not ticked yet'}</div></div>
+          card?.agreed === 'by_signing_in'
+            ? <div className="text-2xs text-muted">🔒 By signing in, you agree to the Terms, Privacy and Refund policies.</div>
+            : <div><div className="font-semibold">📜 Before you sign in</div>
+                <div className="text-2xs">{card?.agreed === 'yes' ? '☑ Agreed to Terms, Privacy and Refund' : '☐ Not ticked yet'}</div></div>
         ) : it.kind === 'profile' ? (
           <div className="font-semibold">👤 Profile{card?.name ? ` · ${card.name}` : ''}</div>
         ) : it.kind === 'notify' ? (
