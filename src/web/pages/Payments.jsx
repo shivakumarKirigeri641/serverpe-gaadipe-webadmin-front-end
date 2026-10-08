@@ -6,6 +6,26 @@ import { useRange } from '../components/Layout.jsx';
 import { Section, SourceChip, Stat, State, Table } from '../components/ui.jsx';
 import { ago, dateTime, num, rupees } from '../lib/format';
 
+/* WHY A TRY FAILED, in Razorpay's words made plain (2026-10-08: "is it a time out?"). */
+const FAIL_WORDS = {
+  payment_timeout: 'timed out — the customer did not finish in time',
+  payment_cancelled: 'cancelled by the customer',
+  payment_failed: 'declined by the bank / UPI app',
+  incorrect_pin: 'wrong UPI PIN / card PIN',
+  incorrect_otp: 'wrong OTP',
+  insufficient_balance: 'not enough balance',
+  authentication_failed: 'authentication failed',
+  bank_technical_error: 'the bank had a technical problem',
+  server_error: 'Razorpay or the bank had a server problem',
+  payment_risk_check_failed: 'stopped by the risk check',
+  upi_mandate_rejected: 'UPI request rejected',
+};
+const failText = (f) => {
+  if (!f) return null;
+  const why = FAIL_WORDS[f.reason] || (f.reason ? f.reason.replace(/_/g, ' ') : 'reason not given');
+  return [why, f.method ? `via ${f.method}` : null, f.source ? `(${f.source})` : null].filter(Boolean).join(' ');
+};
+
 /**
  * PAYMENTS (spec §18) and the PAYMENT RECOVERY QUEUE (§123) — the main admin's
  * payment figures, for the period picked at the top. Nobody is contacted from
@@ -85,7 +105,7 @@ export default function Payments() {
                     <td className="td"><div className="text-ink">{p.person_name || '-'}</div><div className="tabular text-2xs text-muted">{p.mobile}</div></td>
                     <td className="td plate">{p.reg_no || '—'}</td>
                     <td className="td tabular">{rupees(p.amount_paise)}</td>
-                    <td className="td"><span className={`chip ${STATUS_CLS[p.status] || 'bg-shell text-muted'}`}>{p.status_label || p.status}</span>{p.had_failure ? <div className="text-2xs text-wrong-700">had a failed try</div> : null}</td>
+                    <td className="td"><span className={`chip ${STATUS_CLS[p.status] || 'bg-shell text-muted'}`}>{p.status_label || p.status}</span>{p.had_failure ? <div className="text-2xs text-wrong-700" title={p.failure?.description || ""}>had a failed try{p.failure ? ` — ${failText(p.failure)}` : ""}</div> : null}</td>
                     <td className="td"><SourceChip source={p.source} /></td>
                     <td className="td font-mono text-2xs text-muted">GP-T-{p.id}<div>{p.razorpay_payment_id || p.order_id}</div></td>
                   </tr>))}
