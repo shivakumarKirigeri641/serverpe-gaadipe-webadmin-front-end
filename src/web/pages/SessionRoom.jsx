@@ -7,7 +7,6 @@ import { CopyId, Section, SourceChip, State, StatusChip, stepWords } from '../co
 import Timeline from '../components/Timeline.jsx';
 import Journey, { ApiTrace } from '../components/Journey.jsx';
 import SessionActions from '../components/SessionActions.jsx';
-import PhoneReplica from '../components/PhoneReplica.jsx';
 import { ago, customerCode, dateTime, deviceCode, deviceOf, duration, num, placeOf, rupees, sessionCode } from '../lib/format';
 
 /**
@@ -34,8 +33,7 @@ export default function SessionRoom() {
   return (
     <State loading={loading} error={error} onRetry={reload} empty={data && !s ? 'No such visit.' : null}>
       {s ? (
-        <div className="xl:flex xl:items-start xl:gap-5">
-        <div className="min-w-0 flex-1">
+        <>
           <div className="card px-4 py-4">
             <div className="flex flex-wrap items-start gap-3">
               <div className="min-w-0 flex-1">
@@ -104,12 +102,7 @@ export default function SessionRoom() {
                 {s.first_touch?.referrer ? <div className="sm:col-span-2"><div className="text-2xs text-muted">Referrer</div><div className="break-all font-mono text-2xs">{s.first_touch.referrer}</div></div> : null}
               </div>) : null}
           </div>
-        </div>
-        {/* The chat as it is on their phone (2026-10-08) — on the right, live while they are here. */}
-        <div className="mt-6 xl:sticky xl:top-4 xl:mt-0">
-          <PhoneReplica sessionId={id} live={Boolean(now)} />
-        </div>
-        </div>
+        </>
       ) : null}
     </State>
   );

@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import PhoneReplica from '../components/PhoneReplica.jsx';
+import { useNavigate } from 'react-router-dom';
 import { useLive } from '../lib/live.jsx';
 import { CopyId, SourceChip, StatusChip, stepWords, Table } from '../components/ui.jsx';
 import { ago, customerCode, deviceOf, duration, num, placeOf, sessionCode } from '../lib/format';
@@ -18,14 +17,11 @@ export default function Live() {
   const { presence, conn } = useLive();
   const navigate = useNavigate();
   const [filter, setFilter] = useState('all');
-  const [picked, setPicked] = useState(null);
   const [, tick] = useState(0);
   useEffect(() => { const t = setInterval(() => tick((n) => n + 1), 1000); return () => clearInterval(t); }, []);
   const c = presence?.counts || {};
   const rows = (presence?.rows || []).filter((r) => filter === 'all' || r.status === filter
     || (filter === 'signed' && r.user_id) || (filter === 'anon' && !r.user_id) || (filter === 'pay' && /pay/.test(r.step || '')));
-  // The visitor shown on the right: the one tapped while still here, else the most recent on the chat.
-  const sel = rows.find((r) => r.session_id === picked) || rows.find((r) => /^\/chat/.test(r.page || '')) || null;
 
   return (
     <>
@@ -50,15 +46,13 @@ export default function Live() {
         <span className="ml-auto text-2xs text-muted">{conn.mode === 'poll' ? 'Updating every 5 s' : 'Live — updates as it happens'}</span>
       </div>
 
-      <div className="mt-3 xl:flex xl:items-start xl:gap-5">
-      <div className="min-w-0 flex-1">
+      <div className="mt-3">
         {!presence ? <div className="card px-4 py-8 text-center text-sm text-muted">Connecting…</div>
           : !rows.length ? <div className="card px-4 py-8 text-center text-sm text-muted">{c.active ? 'Nobody matches this filter.' : 'Nobody is on gaadipe.in right now.'}</div>
             : (
               <Table head={['Visitor', 'Status', 'Journey step', 'Doing now', 'Came from', 'Device · place', 'Here for']}>
                 {rows.map((r) => (
-                  <tr key={r.session_id} className={`cursor-pointer hover:bg-shell/60 ${picked === r.session_id ? 'bg-brand/5' : ''}`}
-                    onClick={() => setPicked(r.session_id)} onDoubleClick={() => navigate(`/web/sessions/${encodeURIComponent(r.session_id)}`)}>
+                  <tr key={r.session_id} className="cursor-pointer hover:bg-shell/60" onClick={() => navigate(`/web/sessions/${encodeURIComponent(r.session_id)}`)}>
                     <td className="td">
                       <div className="text-ink">{r.user_id ? (r.name || '-') : 'Anonymous visitor'}{r.returning ? <span className="ml-1.5 chip bg-shell text-muted">returning</span> : null}</div>
                       <div className="tabular text-2xs text-muted">{r.mobile || ''}</div>
@@ -76,18 +70,6 @@ export default function Live() {
                   </tr>))}
               </Table>
             )}
-      </div>
-      {/* Tap a visitor: their phone, on the right (2026-10-08). Double-tap opens the visit. */}
-      <div className="mt-6 xl:sticky xl:top-4 xl:mt-0">
-        {sel ? (
-          <>
-            <PhoneReplica sessionId={sel.session_id} live />
-            <div className="mt-2 text-center"><Link to={`/web/sessions/${encodeURIComponent(sel.session_id)}`} className="text-2xs font-semibold text-brand">Open this visit →</Link></div>
-          </>
-        ) : (
-          <div className="mx-auto w-[300px] rounded-2xl border border-dashed border-line px-4 py-10 text-center text-2xs text-muted">Tap a visitor to see their screen here, live.</div>
-        )}
-      </div>
       </div>
     </>
   );

@@ -85,7 +85,6 @@ export const api = {
   live: (quiet) => call('/web/live', { quiet }),
   webSessions: (params, quiet) => call(`/web/sessions${qs(params)}`, { quiet }),
   webSession: (id, quiet) => call(`/web/sessions/${encodeURIComponent(id)}`, { quiet }),
-  webScreen: (id, quiet) => call(`/web/sessions/${encodeURIComponent(id)}/screen`, { quiet }),
   webCustomer: (id, quiet) => call(`/web/customers/${encodeURIComponent(id)}`, { quiet }),
   webSearch: (q) => call(`/web/search${qs({ q })}`, { quiet: true }),
   monitoring: (params, quiet) => call(`/web/monitoring${qs(params)}`, { quiet }),
