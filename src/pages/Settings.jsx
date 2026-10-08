@@ -52,6 +52,7 @@ const GROUPS = [
   {
     title: 'Reports and alerts',
     keys: {
+      pay_test_mobiles: 'Owner TEST purchases: these mobiles (comma-separated), when also marked "This is me", pay with Razorpay TEST keys — no real money, booked at ₹0, invoice numbered TEST-…. Leave empty to switch off.',
       free_view_detail: 'How much a FREE check gives away: labels (names the lapsed documents and challan count), count (only how many things need attention — recommended), none (vehicle identity only). Applies to the vehicle page, My vehicles and the every-few-days email.',
       report_valid_days: 'How many days a paid report can be downloaded again.',
       document_number_start: 'Where each day’s invoice and report numbers begin (default 1: GP1, GP2…). Never lower it below a number already issued today — an invoice number must not repeat.',

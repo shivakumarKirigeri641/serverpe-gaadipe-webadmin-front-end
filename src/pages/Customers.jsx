@@ -473,6 +473,8 @@ function VehicleRow({ v, open, onToggle }) {
         </div>
         <div className="flex shrink-0 items-center gap-1.5">
           {v.blocked && <Chip tone="wrong">Blocked</Chip>}
+          {/* Bin in My vehicles (2026-10-08): hidden from the customer, kept here. */}
+          {v.hidden_at && <Chip tone="info">Removed by customer · {date(v.hidden_at)}</Chip>}
           {v.watched && <Chip tone="good">Watched</Chip>}
           {worst && (
             <Chip tone={worst.days < 0 ? 'wrong' : worst.days <= 30 ? 'watch' : 'info'}>
