@@ -388,6 +388,9 @@ export const api = {
 
   settings: () => call('/settings'),
   saveSettings: (settings) => call('/settings', { method: 'PUT', body: { settings } }),
+  // "This is me" — keep the signed-in admin's own visits out of the numbers (2026-10-08).
+  meInternal: () => call('/me/internal', { quiet: true }),
+  setMeInternal: (on) => call('/me/internal', { method: 'POST', body: { on } }),
   savePlan: (code, plan) => call(`/plans/${code}`, { method: 'PUT', body: plan }),
 
   policy: (slug) => call(`/policies/${slug}`),

@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { api } from '../../lib/api';
 import PhoneNotifications from '../../components/PhoneNotifications.jsx';
 import Shell from '../../components/Shell.jsx';
 import { snack, setActivityPopups, celebrate } from '../../components/Live.jsx';
@@ -23,6 +24,37 @@ const OPTIONS = {
     ['manual', 'Manual', 'Only when you press Refresh in the header.'],
   ],
 };
+
+/*
+ * "THIS IS ME" (user, 2026-10-08: 383 visits and 1 sale, much of it my own
+ * testing). Your mobile is marked internal: every phone or computer you sign in
+ * on at gaadipe.in stops counting — visits, sign-ins, checks, sales — in the
+ * overview, the comparisons and the funnels. It is still you; nothing else changes.
+ */
+function ThisIsMe() {
+  const [s, setS] = useState(null);
+  const [busy, setBusy] = useState(false);
+  useEffect(() => { api.meInternal().then(setS).catch(() => setS({ error: true })); }, []);
+  const flip = async (on) => {
+    setBusy(true);
+    try { const o = await api.setMeInternal(on); setS(o); snack(on ? 'Your own visits are now left out of the numbers' : 'Your visits count again'); }
+    catch (e) { snack(e.message, 'wrong'); } finally { setBusy(false); }
+  };
+  return (
+    <div className="card flex flex-wrap items-center justify-between gap-3 p-4">
+      <div className="min-w-0">
+        <h2 className="text-sm font-semibold text-ink">This is me — keep my own visits out of the numbers</h2>
+        <p className="text-2xs text-muted">Your mobile{s?.mobile ? ` (…${s.mobile.slice(-4)})` : ''} is marked as yours: any phone or computer you sign in on at gaadipe.in stops counting as a visitor, sign-in, check or sale — in Website overview, the comparisons and the funnel. Sign in once on each device you test with.</p>
+      </div>
+      {s && !s.error ? (
+        <label className="flex items-center gap-2 text-sm">
+          <input type="checkbox" checked={Boolean(s.internal)} disabled={busy} onChange={(e) => flip(e.target.checked)} />
+          {s.internal ? 'On — left out' : 'Off — counted'}
+        </label>
+      ) : <span className="text-2xs text-muted">{s?.error ? 'Could not read' : '…'}</span>}
+    </div>
+  );
+}
 
 export default function Preferences() {
   const p = usePrefs();
@@ -51,6 +83,7 @@ export default function Preferences() {
   return (
     <Shell title="Display & motion" subtitle="Your own settings — saved to your account">
       <div className="space-y-4">
+        <ThisIsMe />
         <PhoneNotifications />
         {group('motion', 'Motion')}
         {os && <p className="-mt-2 text-2xs text-muted">Your device asks for reduced motion, so the panel moves no more than “Reduced” whatever is chosen here (now: {motionLevel()}).</p>}
