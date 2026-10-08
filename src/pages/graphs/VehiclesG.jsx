@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { BarChart, Bar, Treemap, XAxis, YAxis, CartesianGrid, Tooltip, LabelList } from 'recharts';
+import { BarChart, Bar, ComposedChart, Line, Treemap, XAxis, YAxis, CartesianGrid, Tooltip, LabelList } from 'recharts';
 import { Link } from 'react-router-dom';
 import { count, plate, dateTime } from '../../lib/format';
 import { SERIES, AXIS, GRID, anim, Card, Tip, Drill, Stats, drill, sumOf } from './kit.jsx';
@@ -53,12 +53,25 @@ export default function VehiclesG({ data, days }) {
 
   return (
     <>
+      {/* All vehicles from day one, every channel (2026-10-08) — the period picker does not apply here. */}
       <Stats items={[
-        ['Checks', count(sumOf(data.states, 'checks')), `in ${data.days} days`],
-        ['Different vehicles', count(sumOf(data.states, 'vehicles'))],
+        ['Different vehicles', count(sumOf(data.states, 'vehicles')), data.since ? `since ${month(data.since)} · every channel` : 'every channel'],
+        ['Checks', count(sumOf(data.states, 'checks')), 'all time'],
         ['States', count(data.states.length)],
       ]} />
       <div className="grid gap-4 lg:grid-cols-2">
+        <Card className="lg:col-span-2" title="Vehicles added, month by month" note="Every vehicle GaadiPe has checked, by the month it was first checked — WhatsApp and website — and the running total."
+          legend={[['Added that month', SERIES[0]], ['Total so far', SERIES[3]]]} height={220}
+          table={{ columns: [['month', 'Month', month], ['added', 'Added'], ['total', 'Total']], rows: data.added || [] }}>
+          <ComposedChart data={data.added || []} margin={{ top: 4, right: 8, left: -18, bottom: 0 }}>
+            <CartesianGrid {...GRID} />
+            <XAxis dataKey="month" tickFormatter={month} tick={AXIS} tickLine={false} axisLine={false} />
+            <YAxis allowDecimals={false} tick={AXIS} tickLine={false} axisLine={false} />
+            <Tooltip content={<Tip title={month} />} cursor={{ fill: '#f3f7f6' }} />
+            <Bar dataKey="added" name="Added that month" fill={SERIES[0]} radius={[4, 4, 0, 0]} {...anim()} />
+            <Line dataKey="total" name="Total so far" stroke={SERIES[3]} strokeWidth={2} dot={false} {...anim()} />
+          </ComposedChart>
+        </Card>
         <Card title="Checks by state" note="Top 15 states by checks. Click a state for its RTOs, then an RTO for its vehicles." height={Math.max(220, states.length * 26)}
           table={{ columns: [['name', 'State'], ['checks', 'Checks'], ['vehicles', 'Vehicles']], rows: data.states }}>
           <BarChart data={states} layout="vertical" margin={{ top: 4, right: 40, left: 10, bottom: 0 }}>
@@ -70,7 +83,7 @@ export default function VehiclesG({ data, days }) {
             </Bar>
           </BarChart>
         </Card>
-        <Card title="What is checked" note="Vehicles checked in the period, by its saved record." height={Math.max(220, states.length * 26)}
+        <Card title="What is checked" note="Every vehicle checked so far, by its saved record." height={Math.max(220, states.length * 26)}
           right={(
             <select className="input !w-auto !py-1 text-2xs" value={kind} onChange={(e) => setKind(e.target.value)}>
               {KINDS.map(([k, l]) => <option key={k} value={k}>{l}</option>)}
@@ -81,7 +94,7 @@ export default function VehiclesG({ data, days }) {
             <Treemap data={tree} dataKey="value" nameKey="name" content={<Cellish />} {...anim()}>
               <Tooltip content={<Tip title={(_, p) => p?.[0]?.payload?.name} />} />
             </Treemap>
-          ) : <div className="grid h-full place-items-center text-2xs text-muted">No saved records for this period.</div>}
+          ) : <div className="grid h-full place-items-center text-2xs text-muted">No saved records yet.</div>}
         </Card>
         <Card className="lg:col-span-2" title="Documents expiring" note="Insurance, PUC, road tax and fitness ending each month, across the vehicles GaadiPe holds."
           legend={DOCS} height={240}

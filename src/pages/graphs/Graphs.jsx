@@ -22,7 +22,7 @@ const PAGES = {
   funnel: ['Funnel', 'From a website visit to a paid report — and who stopped where', Funnel],
   money: ['Money', 'Revenue and where it goes — GST, gateway, APIs, SMS, ads', Money],
   customers: ['Customers', 'New and returning, sign-ins, and where they came from', CustomersG],
-  vehicles: ['Vehicles', 'Which vehicles are checked — state, RTO, type, fuel, make — and what is expiring', VehiclesG],
+  vehicles: ['Vehicles', 'Every vehicle since day one (WhatsApp and website) — growth, state, RTO, type, fuel, make — and what is expiring', VehiclesG],
   services: ['Services', 'The outside APIs — calls answered and failed, speed, RC backup spend', Services],
 };
 
@@ -40,7 +40,8 @@ function Page({ page }) {
   const [title, subtitle, View] = PAGES[page];
   const g = useGraph(page);
   return (
-    <Shell title={`Graphs · ${title}`} subtitle={subtitle} actions={<Range days={g.days} setDays={g.setDays} />}>
+    // Vehicles is all time, every channel (2026-10-08): no period to pick.
+    <Shell title={`Graphs · ${title}`} subtitle={subtitle} actions={page === 'vehicles' ? <span className="chip bg-shell text-muted">All time · every channel</span> : <Range days={g.days} setDays={g.setDays} />}>
       <Body data={g.data} error={g.error} reload={g.reload}>
         <View data={g.data} days={g.days} />
       </Body>
