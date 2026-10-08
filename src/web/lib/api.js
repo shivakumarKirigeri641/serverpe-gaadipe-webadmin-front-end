@@ -102,6 +102,7 @@ export const api = {
   customerEmails: () => call('/customer-emails'),
   emailLists: (params) => call(`/customer-emails/lists${qs(params)}`),
   compare: (quiet) => call('/web/compare', { quiet }),
+  totals: (quiet) => call('/web/totals', { quiet }),
   emailPreview: (body) => call('/customer-emails/preview', { method: 'POST', body }),
   emailTest: (body) => call('/customer-emails/test', { method: 'POST', body }),
   emailSend: (body) => call('/customer-emails/send', { method: 'POST', body }),

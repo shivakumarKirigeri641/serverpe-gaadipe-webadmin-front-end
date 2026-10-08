@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useLive } from '../lib/live.jsx';
+import { api } from '../lib/api';
 import { CopyId, SourceChip, StatusChip, stepWords, Table } from '../components/ui.jsx';
 import { ago, customerCode, deviceOf, duration, num, placeOf, sessionCode } from '../lib/format';
 
@@ -11,6 +12,72 @@ import { ago, customerCode, deviceOf, duration, num, placeOf, sessionCode } from
  * from, device and place, how long they have been here. Tap one for its
  * session control room.
  */
+/*
+ * DAY 1 TILL TODAY (user, 2026-10-08): visitors → signed in → converted, each a
+ * total since the first day, what today added against what yesterday added
+ * (▲/▼ %), and how each step turns into the next. Your own visits and ₹0 test
+ * buys are left out (server: admin/totals.js). Refreshed every minute.
+ */
+function Change({ today, yesterday }) {
+  if (!yesterday && !today) return <span className="text-muted">same as yesterday (0)</span>;
+  if (!yesterday) return <span className="font-semibold text-good-700">▲ new — yesterday 0</span>;
+  const d = Math.round(((today - yesterday) / yesterday) * 100);
+  const cls = d > 0 ? 'text-good-700' : d < 0 ? 'text-wrong-700' : 'text-muted';
+  return <span className={`font-semibold ${cls}`}>{d > 0 ? '▲' : d < 0 ? '▼' : '='} {Math.abs(d)}% <span className="font-normal text-muted">vs yesterday ({num(yesterday)})</span></span>;
+}
+
+function Totals() {
+  const [t, setT] = useState(null);
+  const [err, setErr] = useState(null);
+  useEffect(() => {
+    let live = true;
+    const load = () => api.totals(true).then((o) => { if (live) { setT(o); setErr(null); } }).catch((e) => live && setErr(e.message));
+    load();
+    const id = setInterval(load, 60000);
+    return () => { live = false; clearInterval(id); };
+  }, []);
+  const since = (d) => (d ? new Date(d).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : '—');
+  const groups = t ? [
+    ['Visitors', 'Everyone who opened gaadipe.in', t.visitors, null, 'text-ink'],
+    ['Signed in', 'Customer accounts', t.signed_in, t.rates.sign_in_rate != null ? `${t.rates.sign_in_rate}% of visitors` : null, 'text-brand'],
+    ['Converted', 'Paid at least once', t.converted, t.rates.buy_rate != null ? `${t.rates.buy_rate}% of signed in` : null, 'text-good-700'],
+  ] : [];
+  return (
+    <div className="card rise mb-4 p-4">
+      <div className="mb-3 flex flex-wrap items-baseline justify-between gap-2">
+        <h2 className="text-sm font-semibold text-ink">Day 1 till today</h2>
+        <span className="text-2xs text-muted">Your own visits and test buys left out · India time · updates every minute</span>
+      </div>
+      {err ? <div className="text-sm text-wrong-700">Could not load: {err}</div> : !t ? <div className="text-sm text-muted">Loading…</div> : (
+        <div className="grid gap-3 md:grid-cols-3">
+          {groups.map(([label, about, g, rate, cls], i) => (
+            <div key={label} className="relative rounded-xl border border-line p-3">
+              {i > 0 ? <span className="absolute -left-3 top-1/2 hidden -translate-y-1/2 text-muted md:block" aria-hidden="true">›</span> : null}
+              <div className="flex items-baseline justify-between gap-2">
+                <div className="text-2xs font-semibold uppercase tracking-wider text-muted">{label}</div>
+                {rate ? <span className="chip bg-shell text-2xs text-ink">{rate}</span> : null}
+              </div>
+              <div className={`tabular text-3xl font-bold ${cls}`}>{num(g.total)}</div>
+              <div className="text-2xs text-muted">{about} · since {since(g.first_day)}</div>
+              <div className="mt-2 grid grid-cols-2 gap-2 text-2xs">
+                <div><div className="text-muted">Till yesterday</div><div className="tabular text-sm font-semibold text-ink">{num(g.until_yesterday)}</div></div>
+                <div><div className="text-muted">New today</div><div className="tabular text-sm font-semibold text-ink">+{num(g.today)}</div></div>
+              </div>
+              <div className="mt-1.5 text-2xs"><Change today={g.today} yesterday={g.yesterday} /></div>
+            </div>
+          ))}
+        </div>
+      )}
+      {t ? (
+        <div className="mt-2 text-2xs text-muted">
+          Today: {t.rates.sign_in_rate_today != null ? `${t.rates.sign_in_rate_today}% of today's new visitors signed in` : 'no new visitors yet'}
+          {t.rates.buy_rate_today != null ? ` · ${t.rates.buy_rate_today}% of today's new sign-ins paid` : ''}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 const FILTERS = [['all', 'Everyone'], ['ONLINE', 'Online'], ['IDLE', 'Idle'], ['HIDDEN', 'Tab hidden'], ['signed', 'Signed in'], ['anon', 'Anonymous'], ['pay', 'At payment']];
 
 export default function Live() {
@@ -25,6 +92,7 @@ export default function Live() {
 
   return (
     <>
+      <Totals />
       <div className="flex flex-wrap items-end gap-4">
         <div className="card rise flex items-center gap-4 px-5 py-4">
           <div>
