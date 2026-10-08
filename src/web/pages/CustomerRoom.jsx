@@ -8,6 +8,7 @@ import { CopyId, Section, SourceChip, Stat, State, StatusChip, stepWords, Table 
 import Timeline from '../components/Timeline.jsx';
 import Journey, { ApiTrace } from '../components/Journey.jsx';
 import { CustomerActions, DeviceSignOut } from '../components/SessionActions.jsx';
+import CustomerExcel from '../../components/CustomerExcel.jsx';
 import { ago, customerCode, dateTime, deviceCode, deviceOf, duration, num, placeOf, rupees, sessionCode } from '../lib/format';
 
 /**
@@ -49,6 +50,7 @@ export default function CustomerRoom() {
                   <span className="text-2xs text-muted">customer since {dateTime(c.created_at)}</span>
                 </div>
               </div>
+              <CustomerExcel id={c.id} />
               <CustomerActions customer={c} onDone={reload} />
             </div>
             {now ? (

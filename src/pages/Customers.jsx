@@ -11,6 +11,7 @@ import { Table, Hint, Chip, Modal, Empty, Spinner, Failed, Banner, openBlob, sav
 import { useSession, allowed } from '../lib/session';
 import JustCame from '../web/components/JustCame.jsx';
 import ReportButtons from '../components/ReportButtons.jsx';
+import CustomerExcel from '../components/CustomerExcel.jsx';
 
 /**
  * Every customer, one row each, and everything about one of them on a tap.
@@ -200,6 +201,7 @@ export default function Customers() {
                       {fmtMobile(r.mobile)}
                       <button className="ml-2 text-brand-deep hover:underline" title="Everything this person did, in order"
                         onClick={(e) => { e.stopPropagation(); navigate(`/journey?mobile=${r.mobile}`); }}>Journey →</button>
+                      <span className="ml-2"><CustomerExcel id={r.id} compact /></span>
                     </div>
                   </td>
                   <td className="td tabular">{count(r.vehicles_checked)}</td>
@@ -311,6 +313,7 @@ function CustomerDetail({ id, onClose, onChanged }) {
       subtitle={u ? `${fmtMobile(u.mobile)} · joined ${date(u.created_at)} · last seen ${ago(u.last_seen_at)}` : ''}
       footer={u && (
         <>
+          <CustomerExcel id={u.id} />
           {allowed(can, 'block') && (
             <>
               <button className="btn-quiet" disabled={busy} onClick={() => pause(!u.is_paused)}>

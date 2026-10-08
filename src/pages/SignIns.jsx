@@ -5,6 +5,7 @@ import { dateTime, ago, mobile as fmtMobile } from '../lib/format';
 import Shell from '../components/Shell.jsx';
 import { Chip, Empty, Failed, Hint, Modal, Pager, PAGE_SIZE, Spinner } from '../components/ui.jsx';
 import { SessionsTable, STATES } from '../components/Sessions.jsx';
+import { consentOf, ConsentChip } from '../components/Consent.jsx';
 import { duration } from '../lib/format';
 
 /**
@@ -195,6 +196,7 @@ export function Row({ r, i = 0, onOpen, onFilter, showNumber = true }) {
       <td className="td">
         <Chip tone={tone}>{label}</Chip>
         {r.outcome && <div className="mt-0.5 text-2xs text-muted">{OUTCOMES[r.outcome] || r.outcome}</div>}
+        {r.event === 'signed_in' ? <ConsentChip r={r} /> : null}
       </td>
       {showNumber && (
         <td className="td">
@@ -249,6 +251,12 @@ export function Detail({ r, onClose, onFilter }) {
     ['When', dateTime(r.created_at)],
     ['Step', <Chip key="s" tone={tone}>{label}</Chip>],
     ['Outcome', r.outcome ? (OUTCOMES[r.outcome] || r.outcome) : null],
+    ...(r.event === 'signed_in' ? (() => {
+      const c = consentOf(r);
+      return c
+        ? [['Agreed to', `✓ ${c.docs}`], ['Agreed at', dateTime(c.at)], ['Policy versions', c.versions]]
+        : [['Agreed to', 'No agreement recorded for this sign-in']];
+    })() : []),
     ['Name', r.name || 'No name given'],
     ['Number', r.mobile ? fmtMobile(r.mobile) : null],
     ['Customer id', r.user_id],

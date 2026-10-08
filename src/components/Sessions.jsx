@@ -1,5 +1,6 @@
 import { dateTime, ago, duration, mobile as fmtMobile } from '../lib/format';
 import { Hint } from './ui.jsx';
+import { ConsentChip } from './Consent.jsx';
 
 /*
  * A website visit: when it began, how long it lasted, how it ended and how much
@@ -58,6 +59,7 @@ export function SessionsTable({ rows, showCustomer = false }) {
               <td className="td whitespace-nowrap">
                 <div className="text-ink">{dateTime(r.created_at)}</div>
                 <div className="text-2xs text-muted">{ago(r.created_at)}</div>
+                <ConsentChip r={r} />
               </td>
               <td className="td">
                 <StateChip state={r.state} />

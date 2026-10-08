@@ -219,6 +219,8 @@ export const api = {
   geoRtos: (code, params) => call(`/geo/states/${code}${qs(params)}`),
   geoAllRtos: (params) => call(`/geo/rtos${qs(params)}`),
   exportCsv: (kind, params) => pdf(`/export/${kind}${qs(params)}`),
+  // One customer, everything, in Excel with charts (2026-10-08).
+  customerExcel: (id) => pdf(`/customers/${id}/excel`),
   dashboard: () => call('/dashboard'),
   health: () => call('/health'),
   series: (params) => call(`/series${qs(params)}`),
