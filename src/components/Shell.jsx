@@ -53,6 +53,8 @@ const NAV = [
       { to: '/web/live', label: 'Live users', icon: PulseIcon },
       { to: '/web/log', label: 'Event stream', icon: ListIcon },
       { to: '/web/customers', label: 'Website customers', icon: UsersIcon },
+      // Every sign-in with its time, duration, IP, device and user agent (2026-10-08).
+      { to: '/sign-ins', label: 'Sign-ins & sessions', icon: KeyIcon },
       { to: '/web/sessions', label: 'Sessions', icon: PulseIcon },
       { to: '/web/visitors', label: 'Visitors', icon: UsersIcon },
       { to: '/web/leads', label: 'Leads & drop-offs', icon: RupeeIcon },
@@ -186,8 +188,6 @@ const NAV = [
       { to: '/owner-claims', label: 'Owner claims', icon: ShieldIcon, cap: 'dashboard.view' },
       { to: '/data-requests', label: 'Data requests', icon: ShieldIcon, cap: 'dashboard.view', badge: 'data_requests' },
       { to: '/security', label: 'Security', icon: ShieldIcon },
-      // Website logins: kept, but not where customers are while GaadiPe is WhatsApp-first.
-      { to: '/sign-ins', label: 'Website sign-ins', icon: DoorIcon },
     ],
   },
   {
