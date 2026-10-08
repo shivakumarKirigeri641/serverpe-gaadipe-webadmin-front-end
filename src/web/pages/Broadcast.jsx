@@ -24,6 +24,54 @@ const GUIDE = [
   ['Test first', 'Always send a test to yourself and read it on your phone before sending to customers.'],
 ];
 
+/*
+ * THE LISTS BEHIND THE COUNTS (user, 2026-10-08: "can I see the list of
+ * confirmed and unconfirmed mails"). Tap a count; the people in it, searchable,
+ * with when they confirmed, whether they take offers and when they were last
+ * asked to confirm. A CSV of what is shown, for your own records.
+ */
+const LIST_TITLE = { confirmed: 'Confirmed emails — a broadcast reaches them', unconfirmed: 'Given, not confirmed — a broadcast cannot reach them', unsubscribed: 'Unsubscribed — never mailed' };
+function EmailList({ which, onClose }) {
+  const [q, setQ] = useState('');
+  const [term, setTerm] = useState('');
+  const { data, error, loading, reload } = useLoad(() => api.emailLists({ which, q: term }), [which, term]);
+  const rows = data?.rows || [];
+  const csv = () => {
+    const head = ['Name', 'Mobile', 'Email', 'Confirmed', 'Offers', 'Last asked to confirm', 'Unsubscribed', 'Signed up via', 'Emails sent'];
+    const esc = (v) => `"${String(v ?? '').replace(/"/g, '""')}"`;
+    const lines = rows.map((x) => [x.name, x.mobile, x.email, x.email_verified_at && dateTime(x.email_verified_at), x.promo_consent_at ? 'yes' : 'no',
+      x.last_asked && dateTime(x.last_asked), x.email_unsubscribed_at && dateTime(x.email_unsubscribed_at), x.signup_channel, x.emails_sent].map(esc).join(','));
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([[head.join(','), ...lines].join('\n')], { type: 'text/csv' }));
+    a.download = `gaadipe-emails-${which}.csv`; a.click();
+  };
+  return (
+    <Section title={LIST_TITLE[which]} hint={`${num(rows.length)} shown`}>
+      <div className="mb-2 flex flex-wrap items-center gap-2">
+        <input className="input !w-64 !py-1.5 text-sm" placeholder="Search name, mobile or email" value={q}
+          onChange={(e) => setQ(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') setTerm(q.trim()); }} />
+        <button className="btn-quiet !py-1.5 text-2xs" onClick={() => setTerm(q.trim())}>Search</button>
+        <button className="btn-quiet !py-1.5 text-2xs" disabled={!rows.length} onClick={csv}>Download CSV</button>
+        <button className="btn-quiet ml-auto !py-1.5 text-2xs" onClick={onClose}>Close</button>
+      </div>
+      <State loading={loading} error={error} onRetry={reload} empty={data && !rows.length ? 'Nobody in this list.' : null}>
+        {rows.length ? (
+          <Table head={['Customer', 'Email', which === 'unsubscribed' ? 'Unsubscribed' : which === 'confirmed' ? 'Confirmed' : 'Last asked to confirm', 'Offers', 'Signed up', 'Emails sent']}>
+            {rows.map((x) => (
+              <tr key={x.id}>
+                <td className="td"><div className="text-ink">{x.name || '-'}</div><div className="tabular text-2xs text-muted">{x.mobile}</div></td>
+                <td className="td text-2xs break-all">{x.email}</td>
+                <td className="td whitespace-nowrap text-2xs">{which === 'unsubscribed' ? dateTime(x.email_unsubscribed_at) : which === 'confirmed' ? dateTime(x.email_verified_at) : (x.last_asked ? dateTime(x.last_asked) : 'never')}</td>
+                <td className="td text-2xs">{x.promo_consent_at ? <span className="chip bg-good-50 text-good-700">yes</span> : <span className="text-muted">no</span>}</td>
+                <td className="td text-2xs">{x.signup_channel || '-'}<div className="text-muted">{dateTime(x.created_at)}</div></td>
+                <td className="td tabular text-2xs">{num(x.emails_sent)}</td>
+              </tr>))}
+          </Table>) : null}
+      </State>
+    </Section>
+  );
+}
+
 export default function Broadcast() {
   const { can } = useSession();
   const { data, error, loading, reload } = useLoad(() => api.customerEmails(), [], { everyMs: 30000 });
@@ -32,6 +80,7 @@ export default function Broadcast() {
   const [msg, setMsg] = useState(null);
   const [confirm, setConfirm] = useState('');
   const [busy, setBusy] = useState(false);
+  const [list, setList] = useState(null);
   const may = can.includes('settings');
   const r = data?.reach;
   const run = async (fn) => { setBusy(true); setMsg(null); try { await fn(); } catch (e) { setMsg({ tone: 'bad', text: e.message }); } finally { setBusy(false); } };
@@ -51,12 +100,19 @@ export default function Broadcast() {
             <span className="text-2xs opacity-70">(setting admin_customer_email_enabled — separate from the automatic customer emails)</span>
           </label>
           <div className="mt-3 grid grid-cols-2 gap-3 md:grid-cols-5">
-            <Stat label="Confirmed emails" value={num(r?.confirmed)} sub="can receive a broadcast" tone={r?.confirmed ? 'good' : undefined} />
+            <button type="button" className="text-left" onClick={() => setList(list === 'confirmed' ? null : 'confirmed')}>
+              <Stat label="Confirmed emails" value={num(r?.confirmed)} sub={list === 'confirmed' ? 'list shown below ▾' : 'can receive a broadcast · tap for the list'} tone={r?.confirmed ? 'good' : undefined} />
+            </button>
             <Stat label="Opted in to offers" value={num(r?.promo_ok)} sub="can receive promotions" />
-            <Stat label="Given, not confirmed" value={num(r?.unconfirmed)} sub={`${num(r?.can_ask_now)} can be asked now`} />
-            <Stat label="Unsubscribed" value={num(r?.unsubscribed)} />
+            <button type="button" className="text-left" onClick={() => setList(list === 'unconfirmed' ? null : 'unconfirmed')}>
+              <Stat label="Given, not confirmed" value={num(r?.unconfirmed)} sub={list === 'unconfirmed' ? 'list shown below ▾' : `${num(r?.can_ask_now)} can be asked now · tap for the list`} />
+            </button>
+            <button type="button" className="text-left" onClick={() => setList(list === 'unsubscribed' ? null : 'unsubscribed')}>
+              <Stat label="Unsubscribed" value={num(r?.unsubscribed)} sub={list === 'unsubscribed' ? 'list shown below ▾' : 'tap for the list'} />
+            </button>
             <Stat label="RCS" value={data.rcs?.ready ? (data.rcs.enabled ? 'On' : 'Off') : 'Soon'} sub={data.rcs?.ready ? 'provider set up' : 'placeholder — not set up yet'} />
           </div>
+          {list ? <EmailList which={list} onClose={() => setList(null)} /> : null}
           {r?.can_ask_now && may ? (
             <div className="mt-2 flex flex-wrap items-center gap-2 rounded-lg bg-watch-50 px-3 py-2 text-sm text-watch-700">
               {num(r.can_ask_now)} customer{r.can_ask_now === 1 ? '' : 's'} gave an email but never confirmed it — a broadcast cannot reach them.

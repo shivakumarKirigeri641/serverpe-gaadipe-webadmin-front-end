@@ -7,6 +7,7 @@ import { usePeriod } from '../../components/Period.jsx';
 import { Failed, SkeletonCards, Hint } from '../../components/ui.jsx';
 import { dateTime } from '../../lib/format';
 import { MetricCard, Change, rs, num, LEVEL } from './common.jsx';
+import { CompareTable } from '../../web/lib/compare.jsx';
 
 /**
  * BUSINESS HEALTH (user, 2026-09-25) — the owner's first screen.
@@ -54,6 +55,11 @@ export default function BusinessHealth() {
           </p>
         </>
       )}
+
+      {/* Every number against yesterday, last week and last month (2026-10-08). */}
+      <h2 className="mb-1 mt-6 text-sm font-semibold text-ink">Up or down — every number, compared</h2>
+      <p className="mb-2 text-2xs text-muted">Website numbers (new vehicles: every channel). Today against yesterday up to this same time and the same day last week; the last 7 days against the 7 before; this month so far against the same days of last month.</p>
+      <CompareTable money={(p) => `₹${(Number(p || 0) / 100).toLocaleString('en-IN', { maximumFractionDigits: 2 })}`} />
     </Shell>
   );
 }

@@ -6,6 +6,7 @@ import { useRange } from '../components/Layout.jsx';
 import { Section, SourceChip, Stat, State } from '../components/ui.jsx';
 import { num, pct, rupees, time } from '../lib/format';
 import { InsightList } from './Insights.jsx';
+import { CompareTable } from '../lib/compare.jsx';
 
 const PERIOD = { today: 'today', '7d': 'in 7 days', '30d': 'in 30 days' };
 
@@ -26,15 +27,20 @@ export default function Overview() {
           </div>
 
           <div className="mt-3 grid grid-cols-2 gap-3 md:grid-cols-4">
-            <Stat label="Visitors" value={num(t.visitors)} sub={`${num(t.new_visitors)} new ${PERIOD[range]}`} />
-            <Stat label="Signed in" value={num(t.signed_in_customers)} sub={`${num(t.new_customers)} new customers · ${num(t.codes_requested)} codes sent`} />
-            <Stat label="Paid reports" value={num(t.paid)} sub={`${num(t.pay_opened)} payment${t.pay_opened === 1 ? '' : 's'} opened`} tone={t.paid ? 'good' : undefined} />
-            <Stat label="Revenue (web)" value={rupees(t.revenue_paise)} sub={t.paid ? `${rupees(t.revenue_paise / t.paid)} a report` : 'no payments yet'} tone={t.paid ? 'good' : undefined} />
-            <Stat label="Opened the chat" value={num(t.chat_visitors)} sub={`${pct(t.chat_visitors, t.visitors)} of visitors`} />
-            <Stat label="Free checks" value={num(t.free_checks)} sub={`${num(t.free_found)} found · ${num(t.free_checkers)} people`} />
-            <Stat label="Signed-in checks" value={num(t.web_checks)} sub="checks after signing in" />
+            <Stat label="Visitors" trend="visitors" value={num(t.visitors)} sub={`${num(t.new_visitors)} new ${PERIOD[range]}`} />
+            <Stat label="Signed in" trend="sign_ins" value={num(t.signed_in_customers)} sub={`${num(t.new_customers)} new customers · ${num(t.codes_requested)} codes sent`} />
+            <Stat label="Paid reports" trend="paid" value={num(t.paid)} sub={`${num(t.pay_opened)} payment${t.pay_opened === 1 ? '' : 's'} opened`} tone={t.paid ? 'good' : undefined} />
+            <Stat label="Revenue (web)" trend="revenue_paise" value={rupees(t.revenue_paise)} sub={t.paid ? `${rupees(t.revenue_paise / t.paid)} a report` : 'no payments yet'} tone={t.paid ? 'good' : undefined} />
+            <Stat label="Opened the chat" trend="chat_visitors" value={num(t.chat_visitors)} sub={`${pct(t.chat_visitors, t.visitors)} of visitors`} />
+            <Stat label="Free checks" trend="free_checks" value={num(t.free_checks)} sub={`${num(t.free_found)} found · ${num(t.free_checkers)} people`} />
+            <Stat label="Signed-in checks" trend="checks" value={num(t.web_checks)} sub="checks after signing in" />
             <Stat label="Notifications on" value={num(t.push_customers)} sub={`${num(t.push_devices)} phone${t.push_devices === 1 ? '' : 's'} · all time`} />
           </div>
+
+          {/* Every number against yesterday, last week and last month (2026-10-08). */}
+          <Section title="Up or down — every number, compared" hint="Today against yesterday up to this same time and the same day last week; the last 7 days against the 7 before; this month so far against the same days of last month.">
+            <CompareTable money={rupees} />
+          </Section>
 
           <Section title="What the numbers say" right={<Link to="/web/insights" className="text-2xs font-semibold text-brand">All insights →</Link>}>
             <InsightList range={range} />

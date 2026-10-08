@@ -1,12 +1,15 @@
 import { sourceOf } from '../lib/format';
+import { Trend } from '../lib/compare.jsx';
 
-export function Stat({ label, value, sub, tone }) {
+/* trend: a key of /web/compare — the tile then shows ▲/▼ % vs yesterday, the 7 days before and last month (2026-10-08). */
+export function Stat({ label, value, sub, tone, trend, trendWhich }) {
   const color = tone === 'good' ? 'text-good-700' : tone === 'wrong' ? 'text-wrong-700' : 'text-ink';
   return (
     <div className="card rise px-4 py-3.5">
       <div className="text-2xs font-semibold uppercase tracking-wider text-muted">{label}</div>
       <div className={`tabular mt-1 text-2xl font-bold ${color}`}>{value}</div>
       {sub ? <div className="mt-0.5 text-2xs text-muted">{sub}</div> : null}
+      {trend ? <Trend k={trend} which={trendWhich} /> : null}
     </div>
   );
 }

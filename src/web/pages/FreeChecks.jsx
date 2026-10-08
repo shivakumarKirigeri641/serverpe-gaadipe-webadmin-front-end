@@ -20,7 +20,7 @@ export default function FreeChecks() {
           <h1 className="text-lg font-semibold">Free checks</h1>
           <p className="text-2xs text-muted">Vehicle checks in the chat without signing in.</p>
           <div className="mt-4 grid grid-cols-2 gap-3 md:grid-cols-4">
-            <Stat label="Checks" value={num(s.checks)} sub={`${num(s.vehicles)} different vehicles`} />
+            <Stat label="Checks" trend="free_checks" value={num(s.checks)} sub={`${num(s.vehicles)} different vehicles`} />
             <Stat label="Found" value={num(s.found)} sub={`${pct(s.found, s.checks)} of checks`} tone={s.checks && s.found / s.checks < 0.5 ? 'wrong' : undefined} />
             <Stat label="People (devices)" value={num(s.devices)} />
             <Stat label="Then signed in" value={num(s.then_signed_in)} sub={`${pct(s.then_signed_in, s.devices)} of them`} tone={s.then_signed_in ? 'good' : undefined} />

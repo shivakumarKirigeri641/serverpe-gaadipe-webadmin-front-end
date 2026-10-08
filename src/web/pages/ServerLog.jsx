@@ -14,7 +14,7 @@ export default function ServerLog() {
   const [tags, setTags] = useState({});
   const [level, setLevel] = useState('');
   const [q, setQ] = useState('');
-  const [tag, setTag] = useState('');
+  const [tag, setTag] = useState('activity');
   const [paused, setPaused] = useState(false);
   const [err, setErr] = useState(null);
   const since = useRef(0);
@@ -41,7 +41,7 @@ export default function ServerLog() {
   return (
     <>
       <div className="flex flex-wrap items-end justify-between gap-3">
-        <div><h1 className="text-lg font-semibold">Server log</h1><p className="text-2xs text-muted">The server’s own console, live. Since its last restart; pm2 keeps the full files.</p></div>
+        <div><h1 className="text-lg font-semibold">Server log</h1><p className="text-2xs text-muted">The server’s own console, live. “Activity” is every sign-in, check, payment, download, broadcast and admin action in plain words — also kept on the server in logs/activity-DATE.log for 60 days.</p></div>
         <div className="flex flex-wrap gap-2">
           <select className="input !w-auto !py-1.5 text-sm" value={level} onChange={(e) => setLevel(e.target.value)}><option value="">All levels</option><option value="error">Errors</option><option value="warn">Warnings</option><option value="log">Info</option></select>
           <input className="input !w-56 !py-1.5 text-sm" placeholder="Search" value={q} onChange={(e) => setQ(e.target.value)} />
@@ -50,7 +50,10 @@ export default function ServerLog() {
       </div>
       <div className="mt-3 flex flex-wrap gap-1.5">
         <button onClick={() => setTag('')} className={`chip border !px-2.5 !py-0.5 ${!tag ? 'border-brand bg-brand text-white' : 'border-line bg-white'}`}>everything</button>
-        {Object.entries(tags).sort((a, b) => b[1] - a[1]).slice(0, 24).map(([t, n]) => (
+        {/* Plain words first (util/activity.js, 2026-10-08): who did what, readable. */}
+        <button onClick={() => setTag(tag === 'activity' ? '' : 'activity')} className={`chip border !px-2.5 !py-0.5 font-semibold ${tag === 'activity' ? 'border-brand bg-brand text-white' : 'border-brand/40 bg-brand/5 text-brand'}`}>
+          📋 Activity, in plain words <span className="opacity-60">{tags.activity || 0}</span></button>
+        {Object.entries(tags).filter(([t]) => t !== 'activity').sort((a, b) => b[1] - a[1]).slice(0, 24).map(([t, n]) => (
           <button key={t} onClick={() => setTag(tag === t ? '' : t)} className={`chip border !px-2.5 !py-0.5 ${tag === t ? 'border-brand bg-brand text-white' : 'border-line bg-white'}`}>{t} <span className="opacity-60">{n}</span></button>))}
       </div>
       {err ? <div className="mt-2 rounded-lg bg-wrong-50 px-3 py-2 text-sm text-wrong-700">{err}</div> : null}

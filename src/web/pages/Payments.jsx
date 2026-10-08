@@ -52,8 +52,8 @@ export default function Payments() {
         {t ? (
           <>
             <div className="mt-3 grid grid-cols-2 gap-3 md:grid-cols-4">
-              <Stat label="Paid" value={num(t.paid)} sub={`${num(t.started)} started · ${t.success_pct ?? '—'}% success`} tone={t.paid ? 'good' : undefined} />
-              <Stat label="Gross" value={rupees(t.gross_paise)} sub={`${num(t.payers)} payer${t.payers === 1 ? '' : 's'} · ${rupees(t.arpu_paise)} each`} />
+              <Stat label="Paid" trend="paid" value={num(t.paid)} sub={`${num(t.started)} started · ${t.success_pct ?? '—'}% success`} tone={t.paid ? 'good' : undefined} />
+              <Stat label="Gross" trend="revenue_paise" value={rupees(t.gross_paise)} sub={`${num(t.payers)} payer${t.payers === 1 ? '' : 's'} · ${rupees(t.arpu_paise)} each`} />
               <Stat label="Net (after GST, fees, costs)" value={rupees(t.net_paise)} sub={`GST ${rupees(t.gst_paise)} · gateway ${rupees(t.gateway_paise)}`} />
               <Stat label="Not completed / failed" value={`${num(t.not_completed)} / ${num(t.failed)}`} sub={`${num(t.refunded)} refunded`} tone={t.failed ? 'wrong' : undefined} />
             </div>

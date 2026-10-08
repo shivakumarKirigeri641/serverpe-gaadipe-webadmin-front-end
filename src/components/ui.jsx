@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { motionLevel, DURATION } from '../lib/motion.jsx';
 import { createPortal } from 'react-dom';
 import { onBusyChange } from '../lib/api';
+import { Trend } from '../web/lib/compare.jsx';
 
 /*
  * The small pieces every screen is built from, so the same thing looks and
@@ -148,12 +149,14 @@ export function Modal({ title, subtitle, onClose, children, footer, wide = false
  * A number on its own is trivia: 14 checks today means nothing until it is
  * beside yesterday's 9. The comparison is part of the tile, not an afterthought.
  */
-export function Stat({ label, value, sub, tone = 'info', note, onClick, delay = 0 }) {
+/* trend: a key of /web/compare — ▲/▼ % vs yesterday, the 7 days before and last month (2026-10-08). */
+export function Stat({ label, value, sub, tone = 'info', note, onClick, delay = 0, trend, trendWhich }) {
   const body = (
     <>
       <div className="text-2xs font-semibold uppercase tracking-wider text-muted">{label}</div>
       <div className="tabular mt-1 text-2xl font-semibold text-ink">{value}</div>
       {sub && <div className={`mt-0.5 text-2xs ${tone === 'wrong' ? 'text-wrong-700' : 'text-muted'}`}>{sub}</div>}
+      {trend ? <Trend k={trend} which={trendWhich} /> : null}
     </>
   );
   return (
