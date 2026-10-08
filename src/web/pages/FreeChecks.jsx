@@ -43,6 +43,7 @@ const OUTCOME = {
 const REFUSAL = {
   no_consent: 'did not agree', no_device_id: 'no browser id (likely a bot)', daily_limit_device: 'already used today (this browser)',
   daily_limit_ip: 'already used today (this network)', hourly_site_cap: 'site hourly cap', scraping_guard: 'scanning guard', vehicle_blocked: 'vehicle blocked',
+  retry_limit: '3 failed tries this hour (records server down)',
 };
 
 /*
