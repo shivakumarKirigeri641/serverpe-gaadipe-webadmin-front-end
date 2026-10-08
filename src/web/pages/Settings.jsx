@@ -12,7 +12,7 @@ import { ago, dateTime } from '../lib/format';
  * cooldown, test), desktop notifications, auto-lock, this admin's sessions, and
  * who else is in the panel. Saved per admin on the server.
  */
-const LOCKS = [[5, '5 minutes'], [10, '10 minutes'], [15, '15 minutes'], [30, '30 minutes'], [0, 'Never (owner only)']];
+const LOCKS = [[5, '5 minutes'], [10, '10 minutes'], [15, '15 minutes'], [30, '30 minutes'], [60, '1 hour'], [0, 'Never (owner only)']];
 
 function Switch({ on, onChange, label, disabled }) {
   return (
