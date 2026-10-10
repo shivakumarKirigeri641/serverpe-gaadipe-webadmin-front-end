@@ -38,7 +38,7 @@ export default function PaymentFailures() {
           <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
             {[['Success rate', pct(d.success_rate), 'Payments completed ÷ payments started.'], ['Failure rate', pct(d.failure_rate), 'Started, failed at Razorpay and never paid ÷ started.'],
               ['Paid after a failure', num(d.recovered_after_failure), `Of ${d.had_failure} with a failed attempt, these paid on a later try.`], ['In progress now', num(d.in_progress), 'Started in the last 30 minutes.']].map(([l, v, n]) => (
-              <Hint key={l} note={n}><div className="card px-4 py-3"><div className="text-2xs font-semibold uppercase tracking-wider text-muted">{l}</div><div className="tabular mt-1 text-xl font-semibold text-ink">{v}</div></div></Hint>
+              <Hint key={l} note={n}><div className="card stat-fill px-4 py-3"><div className="text-2xs font-semibold uppercase tracking-wider text-muted">{l}</div><div className="tabular mt-1 text-xl font-semibold text-ink">{v}</div></div></Hint>
             ))}
           </div>
           <div className="grid gap-4 lg:grid-cols-2">

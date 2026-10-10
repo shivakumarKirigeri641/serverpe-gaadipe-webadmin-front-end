@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
 import { Area, Bar, CartesianGrid, ComposedChart, Legend, Line, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
+import { chartAnim } from '../../lib/motion.jsx';
 import { api } from '../lib/api';
 import { useLoad } from '../lib/useLoad';
 import { useRange } from '../components/Layout.jsx';
@@ -26,7 +27,7 @@ export default function Overview() {
             <span>Updated {time(at)}</span>
           </div>
 
-          <div className="mt-3 grid grid-cols-2 gap-3 md:grid-cols-4">
+          <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-4">
             <Stat label="Visitors" trend="visitors" value={num(t.visitors)} sub={`${num(t.new_visitors)} new ${PERIOD[range]}`} />
             <Stat label="Signed in" trend="sign_ins" value={num(t.signed_in_customers)} sub={`${num(t.new_customers)} new customers · ${num(t.codes_requested)} codes sent`} />
             <Stat label="Paid reports" trend="paid" value={num(t.paid)} sub={`${num(t.pay_opened)} payment${t.pay_opened === 1 ? '' : 's'} opened`} tone={t.paid ? 'good' : undefined} />
@@ -53,10 +54,10 @@ export default function Overview() {
                 const w = Math.max(2, Math.round((100 * f.n) / top));
                 const prev = i ? data.funnel[i - 1].n : null;
                 return (
-                  <div key={f.key} className="flex items-center gap-3 px-4 py-2.5">
-                    <div className="w-44 shrink-0 text-sm text-ink">{f.label}</div>
+                  <div key={f.key} className="flex items-center gap-2 px-3 py-2.5 sm:gap-3 sm:px-4">
+                    <div className="w-28 shrink-0 text-sm text-ink sm:w-44">{f.label}</div>
                     <div className="h-6 flex-1 rounded bg-shell">
-                      <div className="h-6 rounded bg-brand/80 transition-all" style={{ width: `${w}%` }} />
+                      <div className="funnel-fill h-6 rounded bg-gradient-to-r from-brand to-brand-accent" style={{ width: `${w}%` }} />
                     </div>
                     <div className="tabular w-14 text-right text-sm font-semibold text-ink">{num(f.n)}</div>
                     {/* Only a real narrowing is a share: a customer can open the payment more than once. */}
@@ -68,8 +69,8 @@ export default function Overview() {
           </Section>
 
           <Section title={range === 'today' ? 'Hour by hour' : 'Day by day'} hint="Visitors as the area; free checks, sign-ins and payments as bars">
-            <div className="card px-2 py-3">
-              <div className="h-64">
+            <div className="card plot-card px-2 py-3">
+              <div className="plot-stage h-52 w-full sm:h-64">
                 <ResponsiveContainer>
                   <ComposedChart data={data.series} margin={{ top: 8, right: 12, left: -16, bottom: 0 }}>
                     <CartesianGrid stroke="#e3ecea" vertical={false} />
@@ -77,10 +78,10 @@ export default function Overview() {
                     <YAxis allowDecimals={false} tick={{ fontSize: 11, fill: '#6b8380' }} />
                     <Tooltip contentStyle={{ fontSize: 12, borderRadius: 8 }} />
                     <Legend wrapperStyle={{ fontSize: 12 }} />
-                    <Area type="monotone" dataKey="visitors" name="Visitors" fill="#0f766e22" stroke="#0f766e" strokeWidth={2} />
-                    <Bar dataKey="free_checks" name="Free checks" fill="#f59e0b" radius={[3, 3, 0, 0]} />
-                    <Bar dataKey="sign_ins" name="Sign-ins" fill="#2563eb" radius={[3, 3, 0, 0]} />
-                    <Line type="monotone" dataKey="paid" name="Paid" stroke="#12a150" strokeWidth={2.5} dot={false} activeDot={{ r: 4 }} />
+                    <Area type="monotone" dataKey="visitors" name="Visitors" fill="#0f766e22" stroke="#0f766e" strokeWidth={2} {...chartAnim()} />
+                    <Bar dataKey="free_checks" name="Free checks" fill="#f59e0b" radius={[3, 3, 0, 0]} {...chartAnim()} />
+                    <Bar dataKey="sign_ins" name="Sign-ins" fill="#2563eb" radius={[3, 3, 0, 0]} {...chartAnim()} />
+                    <Line type="monotone" dataKey="paid" name="Paid" stroke="#12a150" strokeWidth={2.5} dot={false} activeDot={{ r: 4 }} {...chartAnim()} />
                   </ComposedChart>
                 </ResponsiveContainer>
               </div>

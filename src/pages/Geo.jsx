@@ -429,7 +429,7 @@ export default function Geo() {
         : view === 'nested' ? <StatesNested params={params} periodKey={key} />
         : error && !data ? <Failed error={error} onRetry={load} /> : !data ? <Skeleton rows={6} /> : (
         <div className="grid gap-4 xl:grid-cols-5">
-          <div className="card p-4 xl:col-span-3">
+          <div className="card plot-card p-4 xl:col-span-3">
             <div className="grid gap-1" style={{ gridTemplateColumns: 'repeat(9, minmax(0, 1fr))' }}>
               {Array.from({ length: 8 * 9 }, (_, i) => {
                 const col = i % 9; const row = Math.floor(i / 9);

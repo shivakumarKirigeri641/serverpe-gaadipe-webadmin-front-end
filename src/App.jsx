@@ -1,6 +1,6 @@
-import { Suspense } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { useSession } from './lib/session';
+import ScreenError from './components/ScreenError.jsx';
 // The website admin's sign-in: the panel passcode, or a code by SMS (2026-10-07).
 import SignIn from './web/pages/SignIn.jsx';
 import Dashboard from './pages/Dashboard.jsx';
@@ -90,11 +90,20 @@ export default function App() {
   const { me, ready } = useSession();
 
   if (!ready) {
-    return <div className="grid min-h-screen place-items-center text-sm text-muted">Loading…</div>;
+    return (
+      <div className="splash grid min-h-screen place-items-center px-6">
+        <div className="text-center">
+          <span className="auth-mark mx-auto grid h-12 w-12 place-items-center rounded-xl text-sm font-bold text-white">GP</span>
+          <p className="mt-4 font-display text-lg text-cream">GaadiPe</p>
+          <p className="mt-1 text-[10px] uppercase tracking-[0.2em] text-cream/45">Opening the desk…</p>
+        </div>
+      </div>
+    );
   }
   if (!me) return <SignIn />;
 
   return (
+    <ScreenError>
     <Routes>
       {/* The Command Center is the start page; the previous Home, with its
           "Needs you" list, stays as Overview. */}
@@ -167,10 +176,7 @@ export default function App() {
       <Route path="/vehicles/:reg" element={<VehicleProfile />} />
       <Route path="/graphs" element={<Graphs />} />
       <Route path="/graphs/:page" element={<Graphs />} />
-      <Route path="/analytics" element={
-        <Suspense fallback={<div className="grid min-h-screen place-items-center text-sm text-muted">Loading charts…</div>}>
-          <Analytics />
-        </Suspense>} />
+      <Route path="/analytics" element={<Analytics />} />
       <Route path="/finance" element={<Finance />} />
       <Route path="/documents" element={<Documents />} />
       <Route path="/check" element={<Check />} />
@@ -192,5 +198,6 @@ export default function App() {
       <Route path="/web/*" element={<WebApp />} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
+    </ScreenError>
   );
 }

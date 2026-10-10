@@ -478,24 +478,24 @@ export default function Shell({ title, subtitle, actions, tabs, children }) {
       {open && <div className="fixed inset-0 z-30 bg-forest/50 backdrop-blur-sm lg:hidden" onClick={() => setOpen(false)} />}
 
       <div className="min-w-0 flex-1">
-        <header className="sticky top-0 z-20 flex h-14 items-center gap-3 border-b border-line/80 bg-paper/80 px-4 backdrop-blur-xl lg:px-6">
+        <header className="sticky top-0 z-20 flex min-h-14 flex-wrap items-center gap-2 border-b border-line/80 bg-paper/80 px-3 py-2 backdrop-blur-xl sm:gap-3 sm:px-4 lg:px-6">
           <button className="btn-quiet !px-2.5 !py-1.5 lg:hidden" onClick={() => setOpen(true)} aria-label="Menu">☰</button>
-          <div className="min-w-0 flex-1">
+          <div className="min-w-0 flex-1 basis-40">
             <h1 className="flex items-center gap-2 truncate font-display text-[1.05rem] font-semibold tracking-tight text-ink">{title}<Updating /></h1>
-            {subtitle && <p className="truncate text-2xs text-muted">{subtitle}</p>}
+            {subtitle && <p className="hidden truncate text-2xs text-muted sm:block">{subtitle}</p>}
           </div>
           <button type="button" onClick={() => setPalette(true)} aria-label="Quick find (Ctrl K)"
-            className="no-print m-press hidden items-center gap-2 rounded-xl border border-line bg-white/80 px-2.5 py-1.5 text-2xs text-muted hover:border-copper/50 hover:text-ink md:inline-flex">
+            className="no-print m-press hidden items-center gap-2 rounded-xl border border-line bg-white/80 px-2.5 py-1.5 text-2xs text-muted hover:border-copper/50 hover:text-ink lg:inline-flex">
             <span className="font-semibold text-ink">Quick find</span><kbd className="rounded border border-line bg-shell px-1 text-[10px]">Ctrl K</kbd>
           </button>
           <button type="button" onClick={() => setPalette(true)} aria-label="Quick find"
-            className="no-print grid h-8 w-8 place-items-center rounded-lg text-body hover:bg-shell md:hidden"><SearchIcon /></button>
-          {allowed(can, 'dashboard.view') && <div className="no-print"><GlobalSearch /></div>}
-          <div className="no-print flex items-center gap-2">{actions}</div>
+            className="no-print grid h-8 w-8 place-items-center rounded-lg text-body hover:bg-shell lg:hidden"><SearchIcon /></button>
+          {allowed(can, 'dashboard.view') && <div className="no-print hidden xl:block"><GlobalSearch /></div>}
+          <div className="no-print toolbar-scroll flex max-w-full items-center gap-2 overflow-x-auto">{actions}</div>
           <div className="no-print flex items-center gap-1"><ConnectionStatus /><RefreshButton /></div>
           <Notifications Icon={BellIcon} />
-          <div className="no-print hidden items-center gap-2 border-l border-line pl-3 sm:flex">
-            <div className="text-right leading-tight">
+          <div className="no-print flex items-center gap-2 border-l border-line pl-2 sm:pl-3">
+            <div className="hidden text-right leading-tight sm:block">
               <Link to="/preferences" className="text-2xs font-semibold text-ink hover:underline" title="Display & motion">{me?.name}</Link>
               <div className="text-[10px] uppercase tracking-[0.12em] text-muted">{me?.role}</div>
             </div>
@@ -506,9 +506,9 @@ export default function Shell({ title, subtitle, actions, tabs, children }) {
         {/* A screen made of tabs passes them here, so they sit under the
             header rather than floating over the sidebar. */}
         <StatusStrip />
-        {tabs && <div className="border-b border-line/80 bg-paper/70 px-4 lg:px-6">{tabs}</div>}
+        {tabs && <div className="toolbar-scroll overflow-x-auto border-b border-line/80 bg-paper/70 px-3 sm:px-4 lg:px-6">{tabs}</div>}
         {/* Each screen arrives with a short fade-rise (motion system). */}
-        <main className="m-enter px-4 py-6 lg:px-7"><OutageBanner />{children}</main>
+        <main className="m-enter px-3 py-4 sm:px-4 sm:py-6 lg:px-7"><OutageBanner />{children}</main>
       </div>
       <Toasts />
       <IconTips />

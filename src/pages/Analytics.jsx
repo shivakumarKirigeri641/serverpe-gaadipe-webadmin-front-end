@@ -78,7 +78,7 @@ export default function Analytics() {
   const usesGrain = tab === 'revenue' || tab === 'activity';
 
   const ready = {
-    growth: data.compare,
+    growth: data.compare?.day?.current,
     revenue: seriesReady,
     fleet: data.fleet,
     documents: data.fleet,

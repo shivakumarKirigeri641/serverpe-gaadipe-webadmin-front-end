@@ -72,7 +72,7 @@ export default function Payments() {
           </div>
 
           <div className="mt-4 grid gap-4 xl:grid-cols-3">
-            <div className="card p-4 xl:col-span-2">
+            <div className="card plot-card p-4 xl:col-span-2">
               <div className="flex items-center justify-between">
                 <h2 className="text-sm font-semibold text-ink">Revenue</h2>
                 <div className="flex gap-1">
@@ -84,7 +84,7 @@ export default function Payments() {
                   ))}
                 </div>
               </div>
-              <div className="mt-3 h-52">
+              <div className="plot-stage mt-3 h-52">
                 {!sum.series.length ? <Empty>No payments in this period.</Empty> : (
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={sum.series.map((s) => ({ ...s, rupees: s.gross_paise / 100 }))}>
@@ -169,7 +169,7 @@ export default function Payments() {
 function Box({ label, v, sub, note, bad = false }) {
   return (
     <Hint note={note} className="block">
-      <div className="card p-3">
+      <div className="card stat-fill p-3">
         <div className="text-2xs uppercase tracking-wider text-muted">{label}</div>
         <div className={`tabular mt-1 text-lg font-bold ${bad ? 'text-wrong-700' : 'text-ink'}`}>{v}</div>
         {sub && <div className="text-2xs text-muted">{sub}</div>}

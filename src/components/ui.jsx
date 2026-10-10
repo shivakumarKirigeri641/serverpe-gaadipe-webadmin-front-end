@@ -67,7 +67,7 @@ const TONES = {
 };
 
 export const Banner = ({ tone = 'info', children, className = '' }) => (
-  <div className={`rounded-lg border px-4 py-2.5 text-sm ${TONES[tone]} ${className}`}>{children}</div>
+  <div className={`rounded-xl border px-4 py-2.5 text-sm ${TONES[tone]} ${className}`}>{children}</div>
 );
 
 /**
@@ -153,16 +153,16 @@ export function Modal({ title, subtitle, onClose, children, footer, wide = false
 export function Stat({ label, value, sub, tone = 'info', note, onClick, delay = 0, trend, trendWhich }) {
   const body = (
     <>
-      <div className="text-2xs font-semibold uppercase tracking-wider text-muted">{label}</div>
-      <div className="tabular mt-1 text-2xl font-semibold text-ink">{value}</div>
+      <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted">{label}</div>
+      <div className="tabular mt-1.5 font-display text-[1.65rem] font-semibold leading-none tracking-tight text-ink">{value}</div>
       {sub && <div className={`mt-0.5 text-2xs ${tone === 'wrong' ? 'text-wrong-700' : 'text-muted'}`}>{sub}</div>}
       {trend ? <Trend k={trend} which={trendWhich} /> : null}
     </>
   );
   return (
     <Hint note={note}>
-      <div className={`card rise px-4 py-3 ${delay ? `rise-${delay}` : ''} ${
-        onClick ? 'lift cursor-pointer hover:shadow-pop' : ''}`}
+      <div className={`card stat-fill rise px-4 py-3 ${delay ? `rise-${delay}` : ''} ${
+        onClick ? 'lift cursor-pointer hover:shadow-glow' : ''}`}
         onClick={onClick}>{body}</div>
     </Hint>
   );
@@ -170,7 +170,7 @@ export function Stat({ label, value, sub, tone = 'info', note, onClick, delay = 
 
 /** Nothing here — said in a sentence, never as an empty box. */
 export const Empty = ({ children = 'Nothing here yet.', action }) => (
-  <div className="m-fade px-4 py-10 text-center text-sm text-muted">
+    <div className="m-fade px-4 py-12 text-center text-sm text-muted">
     <svg viewBox="0 0 24 24" className="mx-auto mb-2 h-7 w-7 text-line" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true">
       <rect x="3" y="4" width="18" height="16" rx="2" /><path d="M3 9h18M8 14h8" />
     </svg>
@@ -236,8 +236,8 @@ export function Failed({ error, onRetry }) {
 export const Table = ({ head, children, className = '' }) => (
   <div className={`overflow-x-auto ${className}`}>
     <table className="w-full min-w-[720px] border-collapse">
-      <thead className="border-b border-line bg-shell/60">{head}</thead>
-      <tbody className="divide-y divide-line">{children}</tbody>
+      <thead className="border-b border-line bg-shell/80">{head}</thead>
+      <tbody className="divide-y divide-line [&>tr]:transition-colors [&>tr:hover]:bg-brand/[0.04]">{children}</tbody>
     </table>
   </div>
 );

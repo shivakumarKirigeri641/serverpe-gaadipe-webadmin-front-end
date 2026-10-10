@@ -78,11 +78,13 @@ export function Body({ data, error, reload, children }) {
  */
 export function Card({ title, note, height = 260, legend, table, right, children, className = '' }) {
   const [asTable, setAsTable] = useState(false);
+  const plotH = typeof window !== 'undefined' && window.matchMedia?.('(max-width: 640px)').matches
+    ? Math.min(height, 220) : height;
   return (
-    <section className={`card cv-rise p-5 ${className}`}>
+    <section className={`card plot-card cv-rise p-4 sm:p-5 ${className}`}>
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div className="min-w-0">
-          <h2 className="text-sm font-semibold text-ink">{title}</h2>
+          <h2 className="font-display text-sm font-semibold tracking-tight text-ink">{title}</h2>
           {note && <p className="text-2xs text-muted">{note}</p>}
         </div>
         <div className="flex items-center gap-2">
@@ -107,7 +109,7 @@ export function Card({ title, note, height = 260, legend, table, right, children
         </div>
       )}
       {asTable && table ? <DataTable {...table} /> : (
-        <div className="mt-3" style={{ width: '100%', height }}>
+        <div className="plot-stage mt-3" style={{ width: '100%', height: plotH }}>
           <ResponsiveContainer>{children}</ResponsiveContainer>
         </div>
       )}
@@ -140,7 +142,7 @@ export function Tip({ active, payload, label, title, fmt = count, total }) {
   const items = payload.filter((p) => p.value != null && !p.hide);
   const sum = items.reduce((a, p) => a + Number(p.value || 0), 0);
   return (
-    <div className="rounded-xl border border-line bg-white px-3 py-2 text-2xs shadow-lg">
+    <div className="rounded-xl border border-line/80 bg-paper/95 px-3 py-2 text-2xs shadow-pop backdrop-blur-sm">
       <div className="mb-1 font-semibold text-ink">{title ? title(label, payload) : label}</div>
       {items.map((p) => (
         <div key={p.name || String(p.dataKey)} className="flex items-center gap-2">
@@ -196,10 +198,10 @@ export function People({ rows, when = 'at', extra }) {
 export function Stats({ items }) {
   return (
     <div className="mb-4 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6">
-      {items.map(([label, value, sub]) => (
-        <div key={label} className="card px-3 py-2">
-          <div className="text-2xs font-semibold uppercase tracking-wider text-muted">{label}</div>
-          <div className="tabular text-xl font-semibold text-ink">{value}</div>
+      {items.map(([label, value, sub], i) => (
+        <div key={label} className="card stat-fill cv-rise px-3 py-2.5" style={{ '--i': i }}>
+          <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted">{label}</div>
+          <div className="tabular font-display text-xl font-semibold tracking-tight text-ink">{value}</div>
           {sub && <div className="text-2xs text-muted">{sub}</div>}
         </div>
       ))}
@@ -209,7 +211,7 @@ export function Stats({ items }) {
 
 /** Speedometers in one card, above the charts (user, 2026-10-03). */
 export function Gauges({ children }) {
-  return <section className="card cv-rise mb-4 flex flex-wrap items-start justify-around gap-6 p-4">{children}</section>;
+  return <section className="card cv-rise mb-4 flex flex-wrap items-start justify-around gap-6 p-4 sm:p-6">{children}</section>;
 }
 
 export const sumOf = (rows, key) => (rows || []).reduce((a, r) => a + Number(r[key] || 0), 0);

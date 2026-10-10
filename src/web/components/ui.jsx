@@ -5,7 +5,7 @@ import { Trend } from '../lib/compare.jsx';
 export function Stat({ label, value, sub, tone, trend, trendWhich }) {
   const color = tone === 'good' ? 'text-good-700' : tone === 'wrong' ? 'text-wrong-700' : 'text-ink';
   return (
-    <div className="card rise px-4 py-3.5">
+    <div className="card stat-fill rise px-4 py-3.5">
       <div className="text-2xs font-semibold uppercase tracking-wider text-muted">{label}</div>
       <div className={`tabular mt-1 text-2xl font-bold ${color}`}>{value}</div>
       {sub ? <div className="mt-0.5 text-2xs text-muted">{sub}</div> : null}
@@ -59,7 +59,7 @@ export function Table({ head, children }) {
     <div className="card overflow-x-auto">
       <table className="w-full min-w-[640px]">
         <thead className="border-b border-line bg-shell/60"><tr>{head.map((h) => <th key={h} className="th">{h}</th>)}</tr></thead>
-        <tbody className="divide-y divide-line">{children}</tbody>
+        <tbody className="divide-y divide-line [&>tr]:transition-colors [&>tr:hover]:bg-brand/[0.04]">{children}</tbody>
       </table>
     </div>
   );

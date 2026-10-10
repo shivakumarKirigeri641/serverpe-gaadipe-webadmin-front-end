@@ -82,7 +82,7 @@ export default function TodayLive() {
             ['Paid', count(t.paid), inr(t.revenue_paise)],
           ]} />
 
-          <section className="card cv-rise p-5">
+          <section className="card plot-card cv-rise p-4 sm:p-5">
             <div className="flex flex-wrap items-start justify-between gap-2">
               <div>
                 <h2 className="text-sm font-semibold text-ink">{data.label} — every {data.bucket_minutes === 1 ? 'minute' : `${data.bucket_minutes} minutes`}</h2>
@@ -97,7 +97,7 @@ export default function TodayLive() {
                 </button>
               ))}
             </div>
-            <div className="mt-3" style={{ width: '100%', height: 340 }}>
+            <div className="plot-stage mt-3 h-[240px] w-full sm:h-[340px]">
               <ResponsiveContainer>
                 <ComposedChart data={data.series} margin={{ top: 8, right: 12, left: -12, bottom: 0 }} barCategoryGap={data.series.length > 60 ? 1 : 3}>
                   <CartesianGrid {...GRID} />
@@ -106,11 +106,11 @@ export default function TodayLive() {
                   <Tooltip content={<LiveTip />} cursor={{ fill: '#f3f7f6' }} />
                   {KEYS.filter(([, , , kind]) => kind === 'bar').map(([k, label, colour]) => (
                     <Bar key={k} dataKey={k} name={label} stackId="checks" fill={colour} hide={hidden.has(k)}
-                      isAnimationActive animationDuration={500} radius={k === 'failed' ? [3, 3, 0, 0] : 0} />
+                      isAnimationActive animationDuration={900} animationEasing="ease-out" radius={k === 'failed' ? [3, 3, 0, 0] : 0} />
                   ))}
                   {KEYS.filter(([, , , kind]) => kind === 'line').map(([k, label, colour]) => (
-                    <Line key={k} dataKey={k} name={label} stroke={colour} strokeWidth={2} dot={false} type="monotone"
-                      hide={hidden.has(k)} isAnimationActive animationDuration={500} />
+                    <Line key={k} dataKey={k} name={label} stroke={colour} strokeWidth={2.4} dot={false} type="monotone"
+                      hide={hidden.has(k)} isAnimationActive animationDuration={900} animationEasing="ease-out" />
                   ))}
                 </ComposedChart>
               </ResponsiveContainer>

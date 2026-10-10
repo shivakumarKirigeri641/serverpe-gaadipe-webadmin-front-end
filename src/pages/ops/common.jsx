@@ -47,9 +47,9 @@ export function MetricCard({ m, delay = 0, period }) {
   const body = (
     <>
       <div className="flex items-start justify-between gap-2">
-        <span className="text-2xs font-semibold uppercase tracking-wider text-muted">{m.label}</span>
+        <span className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted">{m.label}</span>
       </div>
-      <div className="tabular mt-1 text-2xl font-semibold text-ink">
+      <div className="tabular mt-1.5 font-display text-[1.65rem] font-semibold leading-none tracking-tight text-ink">
         {m.value == null ? '—' : <AnimatedNumber value={m.value} worseUp={m.worse_up} format={(v) => (m.money ? rs(Math.round(v)) : num(Math.round(v)))} />}
       </div>
       <div className="mt-0.5"><Change m={m} /></div>
@@ -58,8 +58,8 @@ export function MetricCard({ m, delay = 0, period }) {
   return (
     <Hint note={kpiNote(m, period)}>
       {m.to ? (
-        <Link to={m.to} className={`card rise lift m-press block px-4 py-3 hover:shadow-pop ${delay ? `rise-${delay}` : ''}`}>{body}</Link>
-      ) : <div className="card rise px-4 py-3">{body}</div>}
+        <Link to={m.to} className={`card stat-fill rise lift m-press block px-4 py-3.5 hover:shadow-glow ${delay ? `rise-${delay}` : ''}`}>{body}</Link>
+      ) : <div className="card stat-fill rise px-4 py-3">{body}</div>}
     </Hint>
   );
 }

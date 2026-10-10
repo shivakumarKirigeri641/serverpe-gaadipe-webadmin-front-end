@@ -158,8 +158,8 @@ export default function CommandPalette({ nav, can, open, onClose }) {
   };
   let n = -1;
   return (
-    <div className="m-overlay fixed inset-0 z-[60] flex items-start justify-center bg-ink/30 px-4 pt-[10vh]" onClick={onClose}>
-      <div role="dialog" aria-modal="true" aria-label="Quick find" className="m-modal w-full max-w-xl overflow-hidden rounded-2xl border border-line bg-white shadow-pop" onClick={(e) => e.stopPropagation()}>
+    <div className="m-overlay fixed inset-0 z-[60] flex items-start justify-center bg-forest/45 px-4 pt-[10vh] backdrop-blur-sm" onClick={onClose}>
+      <div role="dialog" aria-modal="true" aria-label="Quick find" className="m-modal w-full max-w-xl overflow-hidden rounded-2xl border border-line bg-paper shadow-glow" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center gap-2 border-b border-line px-4">
           <svg viewBox="0 0 24 24" className="h-4 w-4 text-muted" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" /></svg>
           <input ref={box} value={q} onChange={(e) => { setQ(e.target.value); setAt(0); }} onKeyDown={onKey}

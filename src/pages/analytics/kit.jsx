@@ -30,15 +30,15 @@ export const rupeeAxis = (v) => (v >= 100000 ? `₹${(v / 100000).toFixed(1)}L` 
 
 /** A chart in a card: title, what it shows, and room to draw. */
 export const Chart = ({ title, note, height = 260, right, children }) => (
-  <div className="card cv-rise p-5">
+  <div className="card plot-card cv-rise p-4 sm:p-5">
     <div className="flex flex-wrap items-start justify-between gap-2">
       <div>
-        <h2 className="text-sm font-semibold text-ink">{title}</h2>
+        <h2 className="font-display text-sm font-semibold tracking-tight text-ink">{title}</h2>
         {note && <p className="text-2xs text-muted">{note}</p>}
       </div>
       {right}
     </div>
-    <div className="mt-3" style={{ width: '100%', height }}>
+    <div className="plot-stage mt-3" style={{ width: '100%', height }}>
       <ResponsiveContainer>{children}</ResponsiveContainer>
     </div>
   </div>

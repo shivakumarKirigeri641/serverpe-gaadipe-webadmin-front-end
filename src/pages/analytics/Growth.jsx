@@ -39,14 +39,21 @@ const METRICS = [
 
 export default function Growth({ data }) {
   const [period, setPeriod] = useState('day');
-  const p = data[period];
-  const cur = p.current; const same = p.previous_same_point; const full = p.previous_full;
+  const p = data?.[period];
+  const cur = p?.current;
+  const same = p?.previous_same_point;
+  const full = p?.previous_full;
+  if (!cur || !same || !full) {
+    return <p className="px-1 text-sm text-muted">This comparison is not available yet.</p>;
+  }
 
-  const chartKeys = ['checks', 'wa_chats', 'active_users', 'new_users', 'payments', 'reports'];
+  /* WhatsApp chats left the web admin; skip keys this payload no longer carries. */
+  const chartKeys = ['checks', 'active_users', 'new_users', 'payments', 'reports'];
   const chart = chartKeys.map((k) => {
     const m = METRICS.find((x) => x[0] === k);
+    if (!m) return null;
     return { name: m[1], [PERIODS[period].label]: cur[k], [`${PERIODS[period].prev} (same point)`]: same[k], [`${PERIODS[period].prev} (full)`]: full[k] };
-  });
+  }).filter(Boolean);
 
   return (
     <div className="space-y-4">
@@ -114,16 +121,27 @@ export default function Growth({ data }) {
             {METRICS.map(([key, label, fmt, lower]) => (
               <tr key={key} className="hover:bg-shell/40">
                 <td className="td font-medium text-ink">{label}</td>
-                {Object.keys(PERIODS).map((k) => (
+                {Object.keys(PERIODS).map((k) => {
+                  const row = data[k];
+                  if (!row?.current) {
+                    return (
+                      <FragmentCells key={k}>
+                        <td className="td text-muted">—</td>
+                        <td className="td text-muted">—</td>
+                      </FragmentCells>
+                    );
+                  }
+                  return (
                   <FragmentCells key={k}>
-                    <td className="td tabular">{fmt(data[k].current[key])} <span className="text-2xs text-muted">/ {fmt(data[k].previous_same_point[key])}</span></td>
+                    <td className="td tabular">{fmt(row.current[key])} <span className="text-2xs text-muted">/ {fmt(row.previous_same_point[key])}</span></td>
                     <td className="td">
-                      <Hint note={`Full ${PERIODS[k].prev}: ${fmt(data[k].previous_full[key])} (${delta(data[k].current[key], data[k].previous_full[key]).label})`}>
-                        <Delta now={data[k].current[key]} before={data[k].previous_same_point[key]} lowerIsBetter={lower} />
+                      <Hint note={`Full ${PERIODS[k].prev}: ${fmt(row.previous_full[key])} (${delta(row.current[key], row.previous_full[key]).label})`}>
+                        <Delta now={row.current[key]} before={row.previous_same_point[key]} lowerIsBetter={lower} />
                       </Hint>
                     </td>
                   </FragmentCells>
-                ))}
+                  );
+                })}
               </tr>
             ))}
           </tbody>

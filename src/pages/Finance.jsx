@@ -155,7 +155,7 @@ export default function Finance() {
 
 const Tile = ({ label, value, note }) => (
   <Hint note={note}>
-    <div className="card px-4 py-3">
+    <div className="card stat-fill px-4 py-3">
       <div className="text-2xs font-semibold uppercase tracking-wider text-muted">{label}</div>
       <div className="tabular mt-1 text-2xl font-semibold text-ink">{value}</div>
     </div>

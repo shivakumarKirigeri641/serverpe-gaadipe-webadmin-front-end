@@ -29,7 +29,7 @@ export function ConnectionStatus() {
         : ['LIVE', 'bg-good-500 m-dot-live', 'text-good-700', `The server is answering. Screens refresh ${realtime === 'live' ? 'every few seconds' : realtime === '30s' ? 'every 30 seconds' : 'every minute'}.`];
   return (
     <Hint note={view[3]} right>
-      <span className="hidden items-center gap-1.5 rounded-full border border-line px-2 py-1 sm:inline-flex" role="status" aria-live="polite">
+      <span className="hidden items-center gap-1.5 rounded-full border border-line bg-white/70 px-2.5 py-1 sm:inline-flex" role="status" aria-live="polite">
         <span className={`m-dot h-2 w-2 ${view[1]}`} aria-hidden="true" />
         <span className={`text-[10px] font-bold tracking-wider ${view[2]}`}>{view[0]}</span>
       </span>

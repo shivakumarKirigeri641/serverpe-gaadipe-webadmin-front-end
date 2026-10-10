@@ -62,7 +62,7 @@ export default function GlobalSearch() {
       {loading && <span className="m-spin pointer-events-none absolute right-2.5 top-2 z-10 h-4 w-4 rounded-full border-2 border-line border-t-brand" aria-label="Searching" />}
       <input ref={box} value={q} onChange={(e) => { setQ(e.target.value); setOpen(true); }} onFocus={() => setOpen(true)}
         onBlur={() => setTimeout(() => setOpen(false), 150)} onKeyDown={onKey}
-        className="input !w-56 !py-1.5 !text-sm lg:!w-72" placeholder="Search vehicle, customer, payment…  /" aria-label="Search" />
+        className="input !w-56 !rounded-xl !py-1.5 !text-sm lg:!w-72" placeholder="Search vehicle, customer, payment…  /" aria-label="Search" />
       {open && d && (
         <div className="m-drop absolute right-0 top-10 z-40 max-h-[70vh] w-[28rem] overflow-y-auto rounded-xl border border-line bg-white shadow-pop">
           {!flat.length ? <div className="px-4 py-3 text-sm text-muted">Nothing found. Enter shows the full results page.</div> : GROUPS.map(([g, label]) => (

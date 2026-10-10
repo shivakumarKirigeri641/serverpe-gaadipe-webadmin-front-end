@@ -143,7 +143,7 @@ function Overview({ params, pkey }) {
   if (!d) return <SkeletonCards n={8} />;
   const t = d.totals;
   const tile = (label, v, note, tone) => (
-    <Hint note={note}><div className="card px-4 py-3"><div className="text-2xs font-semibold uppercase tracking-wider text-muted">{label}</div>
+    <Hint note={note}><div className="card stat-fill px-4 py-3"><div className="text-2xs font-semibold uppercase tracking-wider text-muted">{label}</div>
       <div className={`tabular mt-1 text-xl font-semibold ${tone || 'text-ink'}`}>{v}</div></div></Hint>
   );
   const chart = d.series.map((s) => ({ name: s.key, Revenue: s.revenue_paise / 100, Costs: s.costs_paise / 100, Net: s.net_paise / 100, Margin: s.margin_pct }));

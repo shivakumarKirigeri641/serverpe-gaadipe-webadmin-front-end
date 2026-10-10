@@ -98,7 +98,7 @@ export function useChartAnim() {
   const [done, setDone] = useState(false);
   useEffect(() => { const t = setTimeout(() => { first.current = false; setDone(true); }, 900); return () => clearTimeout(t); }, []);
   const on = p.charts && motionLevel() === 'full' && !done;
-  return { isAnimationActive: on, animationDuration: 600, animationEasing: 'ease-out' };
+  return { isAnimationActive: on, animationDuration: 900, animationEasing: 'ease-out', animationBegin: 80 };
 }
 
 /** Legend clicks fade a series out and back (opacity, never removal). */
@@ -304,7 +304,7 @@ export function AnimatedGauge({ value, max = 100, label, text, tone = 'info', ca
       : Math.round(f * max);
   const rot = A0 + SPAN * f;
   return (
-    <div className="flex flex-col items-center" role="img" aria-label={`${label}: ${text ?? value ?? 'no data'}${word ? `, ${word}` : ''}${caption ? `, ${caption}` : ''}`}>
+    <div className="gauge-live flex flex-col items-center" role="img" aria-label={`${label}: ${text ?? value ?? 'no data'}${word ? `, ${word}` : ''}${caption ? `, ${caption}` : ''}`}>
       <svg width={size} height={size} viewBox={`0 0 ${W} ${W}`} aria-hidden="true">
         <circle cx={cx} cy={cy} r={146} fill="#b8862d" />
         <circle cx={cx} cy={cy} r={139} fill="#e3c27a" />
@@ -329,6 +329,7 @@ export function AnimatedGauge({ value, max = 100, label, text, tone = 'info', ca
         </g>
         <circle cx={cx} cy={cy} r={13} fill="#111" />
         <circle cx={cx} cy={cy} r={4.5} fill="#e3c27a" />
+        <ellipse cx={118} cy={92} rx={38} ry={18} fill="#fff" opacity=".18" transform="rotate(-28 118 92)" />
       </svg>
       <div className="mt-1 text-center">
         <div className="text-2xs font-semibold uppercase tracking-wider text-muted">{label}</div>
@@ -346,7 +347,7 @@ export function AnimatedProgressRing({ value, label, tone = 'info', size = 72, s
   const r = size / 2 - stroke; const c = 2 * Math.PI * r;
   return (
     <div className="flex items-center gap-3" role="img" aria-label={`${label}: ${value == null ? 'not available' : `${Math.round(value)}%`}`}>
-      <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} className="-rotate-90">
+      <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} className="ring-live -rotate-90">
         <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="#e3ecea" strokeWidth={stroke} />
         {value != null && <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke={TONE_COLOR[tone]} strokeWidth={stroke} strokeLinecap="round"
           strokeDasharray={c} strokeDashoffset={c * (1 - v / 100)} style={{ transition: 'stroke var(--m-emph) ease' }} />}
@@ -414,7 +415,12 @@ export function useRowChanges(rows, key = (r) => r.id, sig = (r) => JSON.stringi
  * Recharts moves later updates from the old values, not from zero.
  */
 export function chartAnim() {
-  return { isAnimationActive: Boolean(prefs.charts) && motionLevel() === 'full', animationDuration: 600, animationEasing: 'ease-out' };
+  return {
+    isAnimationActive: Boolean(prefs.charts) && motionLevel() === 'full',
+    animationDuration: 900,
+    animationEasing: 'ease-out',
+    animationBegin: 80,
+  };
 }
 
 /**

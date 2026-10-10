@@ -61,7 +61,7 @@ export default function Analytics() {
         <span className="text-2xs text-muted">{data ? `${data.step === 60 ? 'per minute' : data.step === 300 ? 'per 5 minutes' : data.step === 3600 ? 'per hour' : 'per day'} · the lighter bar is still filling` : ''}</span>
       </div>
 
-      <div className="card mt-3 px-2 py-3">
+      <div className="card plot-card mt-3 px-2 py-3">
         <State loading={loading} error={error} onRetry={reload}>
           <div className="h-72">
             <ResponsiveContainer>
