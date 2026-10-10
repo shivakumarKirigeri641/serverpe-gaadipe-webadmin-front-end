@@ -23,19 +23,18 @@ const PERIODS = {
 /* [key, label, format, lowerIsBetter, what it means] */
 const METRICS = [
   ['gross_paise', 'Revenue (gross)', inr, false, 'Every captured payment, GST included.'],
-  ['take_home_paise', 'Take-home', inr, false, 'After GST, Razorpay fee and its GST, WhatsApp and SMS costs.'],
+  ['take_home_paise', 'Take-home', inr, false, 'After GST, Razorpay fee and its GST, and messaging (SMS) costs.'],
   ['payments', 'Payments', count, false, 'Reports paid for.'],
   ['avg_order_paise', 'Average order', inr, false, 'Gross divided by payments.'],
   ['conversion', 'Conversion', (v) => `${v}%`, false, 'Payments as a share of the people who checked a vehicle.'],
   ['checks', 'Vehicle checks', count, false, 'Every lookup made by a customer.'],
   ['active_users', 'People checking', count, false, 'Distinct customers who checked at least one vehicle.'],
-  ['wa_chats', 'WhatsApp chats', count, false, 'Distinct people who messaged GaadiPe on WhatsApp.'],
-  ['new_users', 'New customers', count, false, 'People who wrote to GaadiPe for the first time.'],
+  ['new_users', 'New customers', count, false, 'People who came to GaadiPe for the first time.'],
   ['new_vehicles', 'New vehicles', count, false, 'Vehicles GaadiPe had never seen before.'],
   ['reports', 'Reports issued', count, false, 'Full reports produced.'],
   ['abandoned', 'Abandoned payments', count, true, 'Payments started and not finished.'],
   ['feedback', 'Feedback', count, false, 'Messages sent through the feedback button.'],
-  ['messaging_paise', 'Messaging cost', inr, true, 'WhatsApp templates and SMS codes.'],
+  ['messaging_paise', 'Messaging cost', inr, true, 'SMS sign-in codes and alerts.'],
 ];
 
 export default function Growth({ data }) {

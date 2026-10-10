@@ -12,7 +12,6 @@ import { rs, num } from './common.jsx';
  * where they came from, and what failed. A row opens their whole journey.
  * Search, filters, sort and pages are the server's.
  */
-const WA = { in_window: ['In the 24-hour window', 'good'], known: ['On WhatsApp', 'info'], opted_out: ['Opted out (STOP)', 'wrong'], never: ['Never wrote', 'info'] };
 const SIZE = 50;
 
 export default function CustomerIntel() {
@@ -40,13 +39,12 @@ export default function CustomerIntel() {
       <div className="card overflow-hidden">
         {error && !d ? <Failed error={error} onRetry={load} /> : !d ? <Skeleton rows={8} /> : !d.rows.length ? <Empty>No customer matches.</Empty> : (
           <>
-            <Table head={<tr><th className="th">Customer</th><th className="th">WhatsApp</th>{th('first_seen', 'First seen')}{th('last_active', 'Last active')}<th className="th">Sessions</th>
+            <Table head={<tr><th className="th">Customer</th>{th('first_seen', 'First seen')}{th('last_active', 'Last active')}<th className="th">Sessions</th>
               {th('lookups', 'Searches')}{th('vehicles', 'Vehicles')}{th('reports', 'Reports')}{th('paid', 'Purchased')}{th('revenue', 'Revenue')}<th className="th">Source</th>
               {th('failures', 'Pay failures')}<th className="th">Last vehicle</th><th className="th">Last channel</th></tr>}>
               {d.rows.map((x) => (
                 <tr key={x.id} className="cursor-pointer hover:bg-shell/60" onClick={() => navigate(`/journey?user=${x.id}`)}>
                   <td className="td"><div className="font-mono">{x.mobile || '—'}</div><div className="text-2xs text-muted">#{x.id}{x.name ? ` · ${x.name}` : ''}</div></td>
-                  <td className="td"><Chip tone={WA[x.whatsapp][1]}>{WA[x.whatsapp][0]}</Chip></td>
                   <td className="td whitespace-nowrap text-2xs">{dateTime(x.first_seen)}</td>
                   <td className="td whitespace-nowrap text-2xs">{x.last_active ? ago(x.last_active) : '—'}</td>
                   <td className="td tabular">{num(x.sessions)}</td><td className="td tabular">{num(x.lookups)}</td><td className="td tabular">{num(x.vehicles)}</td>
@@ -54,7 +52,7 @@ export default function CustomerIntel() {
                   <td className="td text-2xs">{x.source.replace(/_/g, ' ')}</td>
                   <td className={`td tabular ${x.pay_failures ? 'text-wrong-700' : ''}`}>{num(x.pay_failures)}</td>
                   <td className="td font-mono">{x.last_reg ? <Link onClick={(e) => e.stopPropagation()} className="text-brand-deep hover:underline" to={`/vehicles/${x.last_reg}`}>{x.last_reg}</Link> : '—'}</td>
-                  <td className="td">{x.last_channel === 'website' ? 'Website' : x.last_channel === 'whatsapp' ? 'WhatsApp' : '—'}</td>
+                  <td className="td">{x.last_channel === 'website' ? 'Website' : '—'}</td>
                 </tr>
               ))}
             </Table>

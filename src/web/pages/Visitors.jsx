@@ -6,7 +6,7 @@ import { useRange } from '../components/Layout.jsx';
 import { Search, SourceChip, State, Table } from '../components/ui.jsx';
 import { ago, dateTime, deviceOf, num, placeOf, sourceOf, time } from '../lib/format';
 
-const SOURCES = ['', 'google_ads', 'meta_ads', 'google', 'social', 'direct', 'referral', 'organic', 'whatsapp'];
+const SOURCES = ['', 'google_ads', 'meta_ads', 'google', 'social', 'direct', 'referral', 'organic'];
 
 export default function Visitors() {
   const [range] = useRange();

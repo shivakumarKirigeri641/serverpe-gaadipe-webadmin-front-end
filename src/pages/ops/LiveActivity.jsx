@@ -11,7 +11,7 @@ import { rs } from './common.jsx';
  * payments and records-API errors. Pause stops the stream (nothing is lost —
  * resuming picks up from where it paused); filter by kind.
  */
-const KIND = { website: ['Website', 'info'], whatsapp: ['WhatsApp', 'good'], lookup: ['Lookup', 'brand'], report: ['Report', 'watch'], payment: ['Payment', 'good'], api_error: ['API error', 'wrong'] };
+const KIND = { website: ['Website', 'info'], lookup: ['Lookup', 'brand'], report: ['Report', 'watch'], payment: ['Payment', 'good'], api_error: ['API error', 'wrong'] };
 
 export default function LiveActivity() {
   const [rows, setRows] = useState(null);
@@ -32,7 +32,8 @@ export default function LiveActivity() {
     if (paused) return undefined;
     tick(); const t = setInterval(tick, 3000); return () => clearInterval(t);
   }, [tick, paused]);
-  const list = (rows || []).filter((r) => !only || r.kind === only);
+  // Web admin (2026-10-10): nothing from WhatsApp.
+  const list = (rows || []).filter((r) => r.kind !== 'whatsapp').filter((r) => !only || r.kind === only);
   return (
     <Shell title="Live activity" subtitle={paused ? 'Paused' : 'Every 3 seconds · the last 24 hours'}
       actions={<button className={paused ? 'btn-primary !py-1.5 text-2xs' : 'btn-quiet !py-1.5 text-2xs'} onClick={() => setPaused((p) => !p)}>{paused ? '▶ Resume' : '❚❚ Pause'}</button>}>

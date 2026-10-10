@@ -83,7 +83,7 @@ function ProfitAndLoss({ p, onSaved }) {
           <Row label="Razorpay fee" v={p.gateway_paise} minus />
           <Row label="ULIP (VAHAN, e-Challan, FASTag)" v={p.ulip_cost_paise} minus />
           <Row label="RC backup (IDSPay)" v={p.rc_backup_cost_paise} minus note={`${p.rc_backup_calls} call${p.rc_backup_calls === 1 ? '' : 's'} × ₹${(p.rc_backup_rate_paise / 100).toFixed(2)}`} />
-          <Row label="WhatsApp & SMS" v={p.messaging_paise} minus />
+          <Row label="Messaging (SMS)" v={p.messaging_paise} minus />
           <Row label="Left from reports" v={p.operating_paise} strong tone={red(p.operating_paise)} />
           <Row label="Meta ads — GaadiPe" v={p.ads_paise} minus
             note={p.ads_assumed_days ? `${p.ads_entered_days} day(s) entered + ${p.ads_assumed_days} × ₹${(p.ads_daily_paise / 100).toFixed(0)} assumed` : 'as entered'} />
@@ -147,7 +147,7 @@ function Overview({ params, pkey }) {
       <div className={`tabular mt-1 text-xl font-semibold ${tone || 'text-ink'}`}>{v}</div></div></Hint>
   );
   const chart = d.series.map((s) => ({ name: s.key, Revenue: s.revenue_paise / 100, Costs: s.costs_paise / 100, Net: s.net_paise / 100, Margin: s.margin_pct }));
-  const GROUPS = [['by_source', 'Source'], ['by_campaign', 'Campaign'], ['by_channel', 'WhatsApp / website'], ['by_kind', 'Paid / free']];
+  const GROUPS = [['by_source', 'Source'], ['by_campaign', 'Campaign'], ['by_kind', 'Paid / free']];
   return (
     <div className="space-y-4">
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4 xl:grid-cols-8">
@@ -156,7 +156,7 @@ function Overview({ params, pkey }) {
         {tile('Net revenue', rs(t.net_revenue_paise), 'Revenue less GST and refunds.')}
         {tile('Gateway', rs(t.gateway_paise), 'Razorpay fee and its GST — actual where Razorpay gave it.')}
         {tile('API cost', rs(t.api_cost_paise), 'Every records-API call in the period.')}
-        {tile('Messaging', rs(t.messaging_paise), 'WhatsApp business messages and sign-in SMS.')}
+        {tile('Messaging', rs(t.messaging_paise), 'SMS sign-in codes and alerts.')}
         {tile('Net contribution', rs(t.net_paise), 'Net revenue less every cost above.', t.net_paise < 0 ? 'text-wrong-700' : 'text-good-700')}
         {tile('Margin', t.margin_pct == null ? '—' : `${t.margin_pct}%`, 'Net contribution ÷ net revenue.')}
       </div>
@@ -193,7 +193,7 @@ function Overview({ params, pkey }) {
           {GROUPS.map(([k, l]) => <button key={k} onClick={() => setBy(k)} className={`chip border ${by === k ? 'border-brand bg-brand text-white' : 'border-line bg-white text-body'}`}>{l}</button>)}
         </div>
         {!d[by].length ? <Empty>No data available.</Empty> : (
-          <Table head={<tr>{['', 'Payments', 'Revenue', 'GST', 'Gateway', 'API', 'WhatsApp', 'Refunds', 'Net contribution', 'Margin'].map((h) => <th key={h} className="th">{h}</th>)}</tr>}>
+          <Table head={<tr>{['', 'Payments', 'Revenue', 'GST', 'Gateway', 'API', 'Messaging', 'Refunds', 'Net contribution', 'Margin'].map((h) => <th key={h} className="th">{h}</th>)}</tr>}>
             {d[by].map((g) => (
               <tr key={g.key}>
                 <td className="td font-semibold text-ink">{g.label}</td><td className="td tabular">{num(g.payments)}{g.free ? <span className="text-2xs text-muted"> +{g.free} free</span> : null}</td>
@@ -207,7 +207,7 @@ function Overview({ params, pkey }) {
       </div>
       <div className="space-y-1 text-2xs text-muted">
         <p>Transactions’ own net: {rs(t.transactions_net_paise)} · costs no payment explains (lookups that did not sell, other messages, sign-in SMS): {rs(t.unattributed_cost_paise)} · business net: {rs(t.net_paise)}.</p>
-        <p>{d.notes.whatsapp}</p>{d.notes.fees && <p>{d.notes.fees}</p>}<p>{d.notes.referral} Ad spend is not recorded, so there is no CAC or ROAS.</p>
+        {d.notes.fees && <p>{d.notes.fees}</p>}<p>{d.notes.referral} Ad spend is not recorded, so there is no CAC or ROAS.</p>
       </div>
     </div>
   );
@@ -234,7 +234,7 @@ function Transactions({ params, pkey }) {
       <div className="card mb-3 flex flex-wrap items-center gap-2 p-3">
         <input className="input !w-64 !py-1.5" value={f.q} onChange={put('q')} placeholder="Payment / order / invoice ID, vehicle, phone" />
         <select className="input !w-auto !py-1.5 text-sm" value={f.kind} onChange={put('kind')}><option value="">Paid and free</option><option value="paid">Paid</option><option value="free">Free reports</option></select>
-        <select className="input !w-auto !py-1.5 text-sm" value={f.channel} onChange={put('channel')}><option value="">Any channel</option><option value="whatsapp">WhatsApp</option><option value="website">Website</option></select>
+        <select className="input !w-auto !py-1.5 text-sm" value={f.channel} onChange={put('channel')}><option value="">Any channel</option><option value="website">Website</option></select>
         <select className="input !w-auto !py-1.5 text-sm" value={f.source} onChange={put('source')}><option value="">Any source</option>{(d?.sources || []).map((s) => <option key={s} value={s}>{s}</option>)}</select>
         <select className="input !w-auto !py-1.5 text-sm" value={f.fee} onChange={put('fee')}><option value="">Any fee</option><option value="estimated">Estimated fee only</option></select>
         <label className="flex items-center gap-1.5 text-sm"><input type="checkbox" checked={f.loss === '1'} onChange={(e) => setF((x) => ({ ...x, loss: e.target.checked ? '1' : '' }))} /> Loss-making</label>
@@ -243,7 +243,7 @@ function Transactions({ params, pkey }) {
         {error && !d ? <Failed error={error} onRetry={load} /> : !d ? <Skeleton rows={8} /> : !d.rows.length ? <Empty>No transaction matches.</Empty> : (
           <>
             <Table head={<tr><th className="th">Transaction</th>{th('date', 'Date')}<th className="th">Customer</th><th className="th">Vehicle</th><th className="th">Source · campaign</th>
-              {th('gross', 'Gross')}<th className="th">GST</th>{th('fee', 'Gateway + GST')}{th('api', 'API')}<th className="th">WhatsApp</th><th className="th">Refund</th>{th('net', 'Net')}{th('margin', 'Margin')}<th className="th">Status</th></tr>}>
+              {th('gross', 'Gross')}<th className="th">GST</th>{th('fee', 'Gateway + GST')}{th('api', 'API')}<th className="th">Messaging</th><th className="th">Refund</th>{th('net', 'Net')}{th('margin', 'Margin')}<th className="th">Status</th></tr>}>
               {d.rows.map((x) => (
                 <tr key={x.id} className="cursor-pointer hover:bg-shell/60" onClick={() => setOpen(x.id)}>
                   <td className="td font-mono text-2xs">#{x.id}<div className="text-muted">{x.payment_id || x.gateway}</div></td>
@@ -263,7 +263,7 @@ function Transactions({ params, pkey }) {
             </Table>
             <div className="flex flex-wrap gap-x-4 border-t border-line bg-shell/40 px-4 py-2 text-2xs text-body">
               <b>{num(d.total)} transactions</b><span>Gross {rs(d.totals.gross_paise)}</span><span>GST {rs(d.totals.gst_paise)}</span>
-              <span>Gateway {rs(d.totals.gateway_paise)}</span><span>API {rs(d.totals.api_cost_paise)}</span><span>WhatsApp {rs(d.totals.whatsapp_cost_paise)}</span>
+              <span>Gateway {rs(d.totals.gateway_paise)}</span><span>API {rs(d.totals.api_cost_paise)}</span><span>Messaging {rs(d.totals.whatsapp_cost_paise)}</span>
               <span className="font-semibold">Net {rs(d.totals.net_paise)}</span>
             </div>
             <Pager page={page} total={d.total} size={SIZE} onPage={setPage} />
@@ -301,7 +301,7 @@ export function TransactionModal({ id, onClose }) {
             {line('Gateway fee', `−${rs(e.gateway_fee_paise)}`, d.rules.fee)}
             {line('GST on gateway fee', `−${rs(e.gateway_gst_paise)}`)}
             {line('Vehicle API cost', `−${rs(e.api_cost_paise)}`, `${e.api_calls} call(s). ${d.rules.api}`)}
-            {line('WhatsApp cost', `−${rs(e.whatsapp_cost_paise)}`, `${e.whatsapp_templates} message(s). ${d.rules.whatsapp}`)}
+            {line('Messaging cost', `−${rs(e.whatsapp_cost_paise)}`, `${e.whatsapp_templates} message(s).`)}
             {line('Refund', e.refund_paise ? `−${rs(e.refund_paise)}` : '—')}
             {line('Referral reward', '—', 'No referral programme for now.')}
             {line('Net contribution', rs(e.net_paise), e.margin_pct == null ? null : `${e.margin_pct}% of net revenue`, true)}
@@ -319,7 +319,6 @@ export function TransactionModal({ id, onClose }) {
               {e.reg_no && <Link className="btn-quiet !py-1 text-2xs" to={`/vehicles/${e.reg_no}#payments`}>Vehicle</Link>}
               {e.user_id && <Link className="btn-quiet !py-1 text-2xs" to={`/journey?user=${e.user_id}`}>Customer journey</Link>}
               {e.reg_no && <Link className="btn-quiet !py-1 text-2xs" to={`/vehicles/${e.reg_no}#api`}>API calls</Link>}
-              {e.reg_no && <Link className="btn-quiet !py-1 text-2xs" to={`/vehicles/${e.reg_no}#whatsapp`}>WhatsApp conversation</Link>}
             </div>
           </div>
           <div className="lg:col-span-2">

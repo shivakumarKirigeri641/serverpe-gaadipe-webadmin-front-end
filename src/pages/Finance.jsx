@@ -76,9 +76,9 @@ export default function Finance() {
                   value={`− ${rupees(data.gateway_fee_paise, { decimals: true })}`}
                   note="Estimated from the fee percentage in settings, not read from Razorpay. Correct it there and every figure here follows." />
                 <Row label="Less GST on that fee" value={`− ${rupees(data.gateway_fee_gst_paise, { decimals: true })}`} />
-                <Row label={`Less WhatsApp messages (₹${(data.whatsapp_rate_paise / 100).toFixed(2)} each)`}
+                <Row label={`Less messaging (₹${(data.whatsapp_rate_paise / 100).toFixed(2)} each)`}
                   value={`− ${rupees(data.whatsapp_cost_paise, { decimals: true })}`}
-                  note={`${count(data.whatsapp_messages)} template message(s) sent — payment, delivery and the 28 days of monitoring alerts. Replies inside an open chat are free.`} />
+                  note={`${count(data.whatsapp_messages)} paid message(s) sent.`} />
                 <Row label={`Less SMS sign-in codes (₹${(data.sms_rate_paise / 100).toFixed(2)} each)`}
                   value={`− ${rupees(data.sms_cost_paise, { decimals: true })}`}
                   note={`${count(data.sms_otps)} code(s) sent — one for every sign-in. Rates are in Settings.`} />

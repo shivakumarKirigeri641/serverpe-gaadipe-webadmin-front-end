@@ -42,11 +42,11 @@ export default function Delivery() {
           <div className="card overflow-hidden">
             {!d.rows.length ? <Empty>No report in this period.</Empty> : (
               <Table head={<tr>{['Report', 'Generated', 'Vehicle', 'Customer', 'Channel', 'Delivery', 'Delivered at'].map((h) => <th key={h} className="th">{h}</th>)}</tr>}>
-                {d.rows.map((x) => (
+                {d.rows.filter((x) => x.channel === 'web' || x.channel === 'website').map((x) => (
                   <tr key={x.id}>
                     <td className="td font-mono text-2xs">{x.report_number}</td><td className="td whitespace-nowrap">{dateTime(x.created_at)}</td>
                     <td className="td font-mono"><Link className="text-brand-deep hover:underline" to={`/vehicles/${x.reg_no}#reports`}>{x.reg_no}</Link></td>
-                    <td className="td font-mono">{x.mobile || '—'}</td><td className="td">{x.channel === 'web' ? 'Website' : 'WhatsApp'}</td>
+                    <td className="td font-mono">{x.mobile || '—'}</td><td className="td">Website</td>
                     <td className="td"><Chip tone={STATE[x.state][1]} note={x.state === 'not_recorded' ? d.notes.not_recorded : undefined}>{STATE[x.state][0]}</Chip></td>
                     <td className="td whitespace-nowrap text-2xs">{x.delivered_at ? dateTime(x.delivered_at) : '—'}</td>
                   </tr>

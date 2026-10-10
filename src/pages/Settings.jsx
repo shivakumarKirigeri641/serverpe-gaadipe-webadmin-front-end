@@ -61,19 +61,8 @@ const GROUPS = [
       watch_interval_minutes_rc: 'Gap between RC checks.',
       watch_interval_minutes_fastag: 'Gap between FASTag checks.',
       renewal_notice_days: 'Days before a subscription ends that the reminder is sent.',
-      alert_send_hour_ist: 'Hour (IST, 0–23) the evening WhatsApp alert starts going out — one per mobile per day. 19 = 7 pm.',
+      alert_send_hour_ist: 'Hour (IST, 0–23) the evening alert starts going out — one per customer per day. 19 = 7 pm.',
       alert_send_until_hour_ist: 'Hour (IST) after which no alert is sent that day. 22 = 10 pm.',
-    },
-  },
-  {
-    title: 'WhatsApp evening alerts',
-    note: 'Sent by the WhatsApp Cloud API — no webhook needed, only the access token and phone number id on the server. '
-      + 'Until the language templates are approved, leave "languages live" off and every alert uses the fallback.',
-    keys: {
-      template_vehicle_alert_languages_live: 'Off: every alert uses the fallback template. On: English or Hindi by the customer’s language, falling back if that fails. Switch on once Meta approves both.',
-      template_vehicle_alert_en: 'English template name (4 parameters: name · vehicle · what · details). Pending approval.',
-      template_vehicle_alert_hi: 'Hindi template name (same 4 parameters). Pending approval.',
-      template_vehicle_alert_fallback: 'The fallback — used now, and whenever the language template fails. Must be an APPROVED template (gp_vehicle_alert_v2 is; parameters: name · vehicle · details · date).',
     },
   },
   {
@@ -100,7 +89,6 @@ const GROUPS = [
       alerts_enabled: 'Run the alert checks (true) or not (false).',
       alert_api_error_pct: 'Records API: warn when this % of live calls fail in 15 minutes. 50% or more is always critical.',
       alert_api_p95_ms: 'Records API: warn when the slowest 5% of calls take longer than this, in milliseconds.',
-      alert_wa_failure_pct: 'WhatsApp: warn when this % of messages sent in the last hour fail (at least 5 sent).',
       alert_payment_failures_hour: 'Payments: warn when this many payments have a failed attempt in one hour.',
       alert_traffic_spike_pct: 'Traffic: note when website visitors this hour are this % above the 7-day hourly average (at least 20).',
       alert_daily_revenue_target_paise: 'Good news when the day passes this revenue, in paise (1900 = ₹19). 0 = off.',
@@ -112,14 +100,10 @@ const GROUPS = [
     note: 'Sent from the noreply mailbox. Switch any of them off here; it takes effect within a minute.',
     keys: {
       admin_alert_emails: 'Who receives them — comma-separated. Empty means ADMINMAIL from the server settings.',
-      notify_wa_only_from: 'TEST MODE — while this has numbers (comma-separated), the WhatsApp emails below are sent only for activity from them. Clear it to be emailed about every customer.',
-      notify_wa_hi: 'WhatsApp — an email each time someone says Hi, marked "New contact" the first time they write.',
-      notify_wa_checks: 'WhatsApp — an email for every vehicle checked: the number, make and model, and whether it was found.',
       notify_payments: 'An email for every successful payment, with the full breakdown and the invoice attached.',
-      notify_left_at_payment: 'WhatsApp — an email when someone opens the ₹19 payment link and has not paid 30 minutes later.',
+      notify_left_at_payment: 'An email when someone opens the ₹19 payment link and has not paid 30 minutes later.',
       notify_feedback: 'An email for every feedback note.',
-      notify_wa_opt_out: 'WhatsApp — an email when someone replies STOP.',
-      notify_sign_ins: 'An email each time someone signs in to gaadipe.in: who, device, place, IP. (The web sign-in is hidden while GaadiPe is WhatsApp-only.)',
+      notify_sign_ins: 'An email each time someone signs in to gaadipe.in: who, device, place, IP.',
       notify_contact: 'An email for every message sent through the website’s Contact form.',
       daily_summary_email: 'One summary of the day: revenue, take-home, payments, checks, sign-ins.',
       daily_summary_hour_ist: 'Time (IST) the daily summary is sent, like 23:55 — late, so it covers the whole day. A plain hour works too: 21 = 9 pm.',
@@ -128,7 +112,7 @@ const GROUPS = [
   },
   {
     title: 'Emails to customers',
-    note: 'Vehicle updates by email, alongside WhatsApp — the copy that keeps working when a WhatsApp message cannot be sent. Paying customers get the full record daily; others get the basic view every few days. Only confirmed addresses are mailed, and every email has an unsubscribe link.',
+    note: 'Vehicle updates by email, alongside browser notifications and SMS. Paying customers get the full record daily; others get the basic view every few days. Only confirmed addresses are mailed, and every email has an unsubscribe link.',
     keys: {
       customer_email_enabled: 'Customer emails on (true) or off (false).',
       customer_email_only_to: 'TEST MODE — while this has addresses, customer emails go ONLY to them. Clear it to send to every customer.',
@@ -170,7 +154,6 @@ const GROUPS = [
     keys: {
       razorpay_fee_percent: "Razorpay's fee, as a percentage. UPI is nil today; cards about 2%.",
       razorpay_fee_gst_percent: 'GST on that fee — 18% in India.',
-      whatsapp_message_cost_paise: 'What one WhatsApp template message costs, in paise (11 = ₹0.11). Taken out of take-home.',
       sms_otp_cost_paise: 'What one SMS sign-in code costs, in paise (25 = ₹0.25). Taken out of take-home.',
       ulip_cost_paise_vahan: 'What one VAHAN lookup costs us, in paise. Zero while ULIP is free.',
       ulip_cost_paise_challan: 'What one e-Challan lookup costs us, in paise.',
@@ -245,7 +228,7 @@ export default function Settings() {
         <div className="space-y-4">
           <div className="card flex flex-wrap items-center gap-2 p-3">
             <input className="input !py-2" autoFocus={Boolean(find)} value={find} onChange={(e) => setFind(e.target.value)}
-              placeholder="Find a setting — e.g. email test, backup, price, whatsapp cost" aria-label="Find a setting" />
+              placeholder="Find a setting — e.g. email test, backup, price, SMS cost" aria-label="Find a setting" />
             {find && <button className="btn-quiet !py-2 text-2xs" onClick={() => setFind('')}>Show all</button>}
             {find && <span className="text-2xs text-muted">{shown.reduce((n, g) => n + g.rows.length, 0) + others.length} match(es)</span>}
           </div>

@@ -48,7 +48,7 @@ export default function DropOff() {
               ))}
             </Table>
           </div>
-          <p className="text-2xs text-muted">Conversion is from the nearest earlier stage with people in it. Website vehicle search is not a stage any more — the website sends people to WhatsApp.</p>
+          <p className="text-2xs text-muted">Conversion is from the nearest earlier stage with people in it.</p>
         </div>
       )}
       {drill && <Drill drill={drill} params={params} onClose={() => setDrill(null)} />}

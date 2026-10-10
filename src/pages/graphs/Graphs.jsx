@@ -22,7 +22,7 @@ const PAGES = {
   funnel: ['Funnel', 'From a website visit to a paid report — and who stopped where', Funnel],
   money: ['Money', 'Revenue and where it goes — GST, gateway, APIs, SMS, ads', Money],
   customers: ['Customers', 'New and returning, sign-ins, and where they came from', CustomersG],
-  vehicles: ['Vehicles', 'Every vehicle since day one (WhatsApp and website) — growth, state, RTO, type, fuel, make — and what is expiring', VehiclesG],
+  vehicles: ['Vehicles', 'Every vehicle since day one — growth, state, RTO, type, fuel, make — and what is expiring', VehiclesG],
   services: ['Services', 'The outside APIs — calls answered and failed, speed, RC backup spend', Services],
 };
 

@@ -60,7 +60,7 @@ export default function VehiclesG({ data, days }) {
         ['States', count(data.states.length)],
       ]} />
       <div className="grid gap-4 lg:grid-cols-2">
-        <Card className="lg:col-span-2" title="Vehicles added, month by month" note="Every vehicle GaadiPe has checked, by the month it was first checked — WhatsApp and website — and the running total."
+        <Card className="lg:col-span-2" title="Vehicles added, month by month" note="Every vehicle GaadiPe has checked, by the month it was first checked — and the running total."
           legend={[['Added that month', SERIES[0]], ['Total so far', SERIES[3]]]} height={220}
           table={{ columns: [['month', 'Month', month], ['added', 'Added'], ['total', 'Total']], rows: data.added || [] }}>
           <ComposedChart data={data.added || []} margin={{ top: 4, right: 8, left: -18, bottom: 0 }}>

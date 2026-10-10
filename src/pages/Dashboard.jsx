@@ -52,7 +52,6 @@ export default function Dashboard() {
     health.payments_stuck && { label: `${health.payments_stuck} payment${health.payments_stuck === 1 ? '' : 's'} started but never finished`, to: '/documents' },
     health.reports_missing && { label: `${health.reports_missing} paid report${health.reports_missing === 1 ? '' : 's'} not issued`, to: '/documents' },
     health.invoices_missing && { label: `${health.invoices_missing} payment${health.invoices_missing === 1 ? '' : 's'} without an invoice`, to: '/documents' },
-    health.send_failures && { label: `${health.send_failures} message${health.send_failures === 1 ? '' : 's'} rejected by WhatsApp today`, to: '/live' },
     health.watches_failing && { label: `${health.watches_failing} vehicle${health.watches_failing === 1 ? '' : 's'} failing their checks`, to: '/vehicles' },
   ].filter(Boolean) : [];
 
@@ -85,11 +84,11 @@ export default function Dashboard() {
           onClick={() => navigate('/customers')} />
       </div>
 
-      <div className="mt-3 grid grid-cols-2 gap-3 lg:grid-cols-4">
+      <div className="mt-3 grid grid-cols-2 gap-3 lg:grid-cols-3">
         <Stat label="Customers" value={count(data.users.total)}
           sub={`${count(data.vehicles.total)} vehicles known`}
           onClick={() => navigate('/customers')}
-          note="Everyone who has ever messaged GaadiPe, and every distinct vehicle any of them has checked." />
+          note="Everyone with a GaadiPe account, and every distinct vehicle any of them has checked." />
         <Stat label="Vehicle alerts running" value={count(data.watching.watches)}
           sub={`${count(data.watching.subscriptions)} paid and live`}
           note="Vehicles under active monitoring right now. Each one is re-checked on its own schedule and its owner is messaged only when something changes." />
@@ -97,11 +96,6 @@ export default function Dashboard() {
           sub={`${count(data.reports.today)} today`}
           onClick={() => navigate('/documents')}
           note="Full reports issued. Each one is a numbered document kept in the database, so a lost file can be sent again." />
-        <Stat label="In conversation" value={count(data.whatsapp.in_window)}
-          sub={`${count(data.whatsapp.messages_today)} messages today`}
-          tone={data.whatsapp.send_failures_today ? 'wrong' : 'info'}
-          onClick={() => navigate('/live')}
-          note="People whose last message was inside 24 hours — the window in which GaadiPe may reply freely. Outside it, only an approved template will deliver." />
       </div>
 
       <div className="mt-5 grid gap-4 lg:grid-cols-3">

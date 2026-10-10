@@ -85,7 +85,7 @@ export default function Revenue({ rows, grain }) {
             <Bar {...chartAnim()} dataKey="take_home" name="Take-home" stackId="a" fill="#0b4f4a" />
             <Bar {...chartAnim()} dataKey="gst" name="GST" stackId="a" fill="#94a3b8" />
             <Bar {...chartAnim()} dataKey="gateway" name="Razorpay" stackId="a" fill="#e08700" />
-            <Bar {...chartAnim()} dataKey="messaging" name="WhatsApp + SMS" stackId="a" fill="#d92d20" radius={[3, 3, 0, 0]} />
+            <Bar {...chartAnim()} dataKey="messaging" name="Messaging (SMS)" stackId="a" fill="#d92d20" radius={[3, 3, 0, 0]} />
           </BarChart>
         </Chart>
 

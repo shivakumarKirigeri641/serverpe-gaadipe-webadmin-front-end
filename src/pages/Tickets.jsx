@@ -125,9 +125,8 @@ function Reply({ ticket, canReply, onClose, onDone }) {
       {result ? (
         <Banner tone={result.delivered ? 'good' : 'watch'} className="mt-4">
           {result.delivered
-            ? <>Sent to their WhatsApp.</>
-            : <>Reply saved, but <b>not delivered</b> — {result.reason === 'whatsapp_off'
-                ? 'WhatsApp is switched off' : result.reason}. It will need sending another way.</>}
+            ? <>Sent by {(result.channels || []).join(' and ') || 'email'}.</>
+            : <>Reply saved, but <b>not delivered</b> — {result.reason || 'no email or account to reach'}. Call or write to them another way.</>}
           <div className="mt-3 text-right">
             <button className="btn-primary" onClick={onDone}>Done</button>
           </div>
@@ -140,8 +139,8 @@ function Reply({ ticket, canReply, onClose, onDone }) {
               onChange={(e) => setText(e.target.value)} disabled={!canReply}
               placeholder="Answer them plainly, in a sentence or two." />
             <span className="mt-1 block text-2xs text-muted">
-              Goes to their WhatsApp as an approved template. Line breaks become “ · ”, because a template
-              parameter may not contain one. {900 - text.length} characters left.
+              Goes by email (the address they wrote from, or their confirmed account email) and as a notification
+              on their phone. Line breaks become “ · ”. {900 - text.length} characters left.
             </span>
           </label>
           {error && <Banner tone="wrong">{error}</Banner>}

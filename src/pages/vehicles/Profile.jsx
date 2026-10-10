@@ -111,9 +111,7 @@ export default function Profile() {
           <Customers p={p} may={may} reg={v.reg_no} />
         </Section>
 
-        <Section id="whatsapp" title="WhatsApp history" badge={`${p.whatsapp.length} conversation${p.whatsapp.length === 1 ? '' : 's'}`}>
-          <WhatsApp sessions={p.whatsapp} />
-        </Section>
+        {/* WhatsApp history: not in the web admin (user, 2026-10-10: website only). */}
 
         <Section id="website" title="Website history" badge={`${p.web.visitors.length} visitor${p.web.visitors.length === 1 ? '' : 's'}`} open={p.web.visitors.length > 0 || p.web.steps.length > 0}>
           <Website w={p.web} />
@@ -527,12 +525,12 @@ function Website({ w }) {
   return (
     <div>
       {w.visitors.length > 0 && (
-        <Table head={<tr>{['Browser', 'First visit', 'Landing page', 'UTM source', 'UTM campaign', 'Pages', 'WhatsApp clicks', 'Linked to WhatsApp'].map((h) => <th key={h} className="th">{h}</th>)}</tr>}>
+        <Table head={<tr>{['Browser', 'First visit', 'Landing page', 'UTM source', 'UTM campaign', 'Pages'].map((h) => <th key={h} className="th">{h}</th>)}</tr>}>
           {w.visitors.map((x) => (
             <tr key={x.visitor}>
               <td className="td font-mono text-2xs">{x.visitor}</td><td className="td whitespace-nowrap">{dateTime(x.first_seen)}</td>
               <td className="td">{show(x.landing_page)}</td><td className="td">{show(x.utm_source)}</td><td className="td">{show(x.utm_campaign)}</td>
-              <td className="td tabular">{count(x.page_views)}</td><td className="td tabular">{count(x.wa_clicks)}</td><td className="td">{x.linked_to_whatsapp ? 'Yes' : 'No'}</td>
+              <td className="td tabular">{count(x.page_views)}</td>
             </tr>
           ))}
         </Table>
@@ -665,7 +663,9 @@ function ApiHistory({ rows, reg }) {
 
 /* ───────────────────────────── timeline and activity ── */
 
-function Timeline({ events }) {
+function Timeline({ events: all }) {
+  // Web admin (2026-10-10): nothing from WhatsApp in a vehicle's timeline.
+  const events = all.filter((e) => e.strand !== 'whatsapp' && e.channel !== 'whatsapp');
   const [only, setOnly] = useState('all');
   const strands = [...new Set(events.map((e) => e.strand))];
   const list = folded(events.filter((e) => only === 'all' || e.strand === only));

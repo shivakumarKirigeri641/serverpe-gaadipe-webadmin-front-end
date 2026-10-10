@@ -42,7 +42,6 @@ export default function CustomerRoom() {
                   <h1 className="text-lg font-semibold">{c.name || '-'}</h1>
                   {now ? <StatusChip status={now.status} /> : <span className="chip bg-shell text-muted">○ Not on the site</span>}
                   {c.deactivated_at ? <span className="chip bg-wrong-50 text-wrong-700">Deactivated</span> : null}
-                  {c.wa_messages ? <span className="chip bg-good-50 text-good-700">WhatsApp customer</span> : null}
                 </div>
                 <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1">
                   <CopyId value={customerCode(c.id)} /><span className="tabular text-2xs text-muted">{c.mobile}</span>
@@ -71,7 +70,6 @@ export default function CustomerRoom() {
             <Stat label="Alerts reach them" value={c.push_devices ? `🔔 ${c.push_devices}` : c.email_verified_at && !c.email_unsubscribed_at ? '✉️ email' : '⚠️ no way'} sub={c.push_devices && c.email_verified_at ? 'and email' : ''} tone={!c.push_devices && !c.email_verified_at ? 'wrong' : undefined} />
             <Stat label="First visit" value={c.first_visit ? ago(c.first_visit) : '—'} sub={c.first_visit ? dateTime(c.first_visit) : 'no website visit recorded'} />
             <Stat label="Last visit" value={c.last_visit ? ago(c.last_visit) : '—'} sub={c.last_visit ? dateTime(c.last_visit) : ''} />
-            <Stat label="WhatsApp" value={num(c.wa_messages)} sub="messages, before the ban" />
           </div>
 
           <div className="mt-6 flex flex-wrap gap-1.5">

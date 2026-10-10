@@ -35,7 +35,7 @@ import CustomerIntel from './pages/ops/CustomerIntel.jsx';
 import Retention from './pages/ops/Retention.jsx';
 import Attribution from './pages/ops/Attribution.jsx';
 import AdSpend from './pages/ops/AdSpend.jsx';
-import WhyNotPaid from './pages/ops/WhyNotPaid.jsx';
+// WhyNotPaid: the WhatsApp funnel, not in the web admin (2026-10-10)
 import DataQuality from './pages/ops/DataQuality.jsx';
 import ApiProviders from './pages/ops/ApiProviders.jsx';
 import Jobs from './pages/ops/Jobs.jsx';
@@ -115,7 +115,8 @@ export default function App() {
       {/* WhatsApp is retired (2026-10-07): its screens lead to what replaced them. */}
       <Route path="/whatsapp/operations" element={<Navigate to="/" replace />} />
       <Route path="/ad-spend" element={<AdSpend />} />
-      <Route path="/why-not-paid" element={<WhyNotPaid />} />
+      {/* The WhatsApp bot's free-check funnel: not in the web admin (2026-10-10). */}
+      <Route path="/why-not-paid" element={<Navigate to="/" replace />} />
       <Route path="/data-quality" element={<DataQuality />} />
       <Route path="/api-providers" element={<ApiProviders />} />
       <Route path="/jobs" element={<Jobs />} />

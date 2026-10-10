@@ -123,7 +123,7 @@ export default function Broadcast() {
           <div className="mt-4 grid gap-4 lg:grid-cols-[1fr_320px]">
             <div className="card space-y-3 px-4 py-4">
               <div className="flex flex-wrap gap-2">
-                {[['email', 'Email', true], ['rcs', 'RCS (coming soon)', false], ['whatsapp', 'WhatsApp (disabled)', false]].map(([k, l, on]) => (
+                {[['email', 'Email', true], ['rcs', 'RCS (coming soon)', false]].map(([k, l, on]) => (
                   <span key={k} className={`chip border !px-3 !py-1 ${on ? 'border-brand bg-brand text-white' : 'border-line bg-shell text-muted'}`} title={on ? '' : 'Not available yet'}>{l}</span>))}
               </div>
               <label className="block"><span className="label">What kind of email</span>

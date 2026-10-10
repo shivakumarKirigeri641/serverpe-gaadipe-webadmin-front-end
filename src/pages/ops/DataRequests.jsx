@@ -44,13 +44,13 @@ export default function DataRequests() {
   return (
     <Shell title="Data requests" subtitle="Customers who asked for their personal data to be deleted (DPDP Act)">
       <div className="card mb-4 p-4 text-2xs leading-relaxed text-body">
-        <b className="text-ink">Deleted:</b> name, email, WhatsApp name, every chat message's text, feedback, contact messages, website visits, sign-in IPs and devices,
+        <b className="text-ink">Deleted:</b> name, email, every chat message's text, feedback, contact messages, website visits, sign-in IPs and devices,
         the vehicles they checked, monitoring, owner claims, the waiting list. GaadiPe stops messaging them.
         <br /><b className="text-ink">Kept, as the law requires:</b> payments, GST invoices, which reports were bought, their recorded consent, and the mobile number
-        (so the deletion and a STOP can still be honoured). The customer is told on WhatsApp when it is done, if their window is open.
+        (so the deletion and a STOP can still be honoured).
       </div>
       {error && !d ? <Failed error={error} onRetry={load} /> : !d ? <Skeleton rows={5} /> : !d.rows.length ? (
-        <div className="card p-8 text-center text-sm text-muted">No requests yet. A customer asks by writing “delete my data” on WhatsApp.</div>
+        <div className="card p-8 text-center text-sm text-muted">No requests yet. A customer asks by writing to support@gaadipe.in.</div>
       ) : (
         <div className="card overflow-x-auto">
           <table className="w-full text-sm">

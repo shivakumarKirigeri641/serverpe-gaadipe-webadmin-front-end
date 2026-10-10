@@ -192,7 +192,8 @@ function FeedbackList() {
   const [total, setTotal] = useState(0);
 
   const load = useCallback(() => api.feedback({ limit: PAGE_SIZE, offset: (page - 1) * PAGE_SIZE })
-    .then((d) => { setRows(d.rows); setTotal(d.total || 0); }).catch(setError), [page]);
+    // Web admin (2026-10-10): feedback given on the website only.
+    .then((d) => { setRows((d.rows || []).filter((f) => f.channel && f.channel !== 'whatsapp')); setTotal(d.total || 0); }).catch(setError), [page]);
   useEffect(() => { load(); }, [load]);
   useAutoRefresh(load);
 

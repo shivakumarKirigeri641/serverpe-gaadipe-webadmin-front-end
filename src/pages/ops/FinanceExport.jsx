@@ -40,7 +40,7 @@ export default function FinanceExport() {
           <div className="card p-4">
             <p className="text-sm text-body">
               One row per transaction: transaction and gateway IDs, invoice, date (IST), customer, vehicle, gross, GST, net, gateway fee, gateway GST,
-              API cost, WhatsApp cost, refund and net contribution — with a TOTAL line. {t.fees_estimated ? `${t.fees_estimated} fee(s) are estimated and marked so.` : ''}
+              API cost, messaging cost, refund and net contribution — with a TOTAL line. {t.fees_estimated ? `${t.fees_estimated} fee(s) are estimated and marked so.` : ''}
             </p>
             <p className="mt-1 text-2xs text-muted">Customer numbers are masked unless your role may see them. Referral rewards: none (no referral programme). The download is written to the audit log.</p>
             <button className="btn-primary mt-3" onClick={go} disabled={busy}>{busy ? 'Preparing…' : `Download CSV — ${d.range.label}`}</button>

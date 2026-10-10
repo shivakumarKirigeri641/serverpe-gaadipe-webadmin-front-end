@@ -13,12 +13,13 @@ import { ago, dateTime, num, placeOf, rupees } from '../lib/format';
  * that WhatsApp is disabled — browser notifications, a confirmed email, or
  * nothing (they only hear from GaadiPe when they open the site).
  */
-const CHANNELS = [['all', 'Everyone'], ['web', 'Website only'], ['whatsapp', 'WhatsApp only'], ['both', 'Both']];
+// Web admin (2026-10-10): website customers only — no WhatsApp filters.
+const CHANNELS = [['all', 'Everyone']];
 const REACH = [['all', 'Any'], ['push', '🔔 Notifications'], ['email', '✉️ Email'], ['none', '⚠️ Cannot be reached']];
 const CH_CHIP = {
   web: ['Website', 'bg-brand/10 text-brand'],
-  whatsapp: ['WhatsApp', 'bg-good-50 text-good-700'],
-  both: ['Website + WhatsApp', 'bg-[#eef2ff] text-[#3730a3]'],
+  whatsapp: ['Website', 'bg-brand/10 text-brand'],
+  both: ['Website', 'bg-brand/10 text-brand'],
 };
 
 export default function Customers() {
@@ -41,24 +42,18 @@ export default function Customers() {
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <h1 className="text-lg font-semibold">Customers</h1>
-          <p className="text-2xs text-muted">Website and WhatsApp customers together — one account per mobile number.</p>
+          <p className="text-2xs text-muted">Everyone who signed in on gaadipe.in — one account per mobile number.</p>
         </div>
         <Search value={q} onChange={setQ} placeholder="Mobile, name or email" />
       </div>
 
       {s ? (
         <div className="mt-4 grid grid-cols-2 gap-3 md:grid-cols-4">
-          <Stat label="All customers" value={num(s.total)} sub={`${num(s.web_only)} website · ${num(s.whatsapp_only)} WhatsApp · ${num(s.both)} both`} />
+          <Stat label="Website customers" value={num((s.web_only || 0) + (s.both || 0))} sub="signed in on gaadipe.in" />
           <Stat label="Get notifications" value={num(s.push)} sub="browser alerts on a phone" tone={s.push ? 'good' : undefined} />
           <Stat label="Confirmed email" value={num(s.email)} sub="alerts by email" tone={s.email ? 'good' : undefined} />
-          <Stat label="Cannot be reached" value={num(s.unreachable)} sub={`${num(s.whatsapp_unreachable)} of them came on WhatsApp`} tone={s.unreachable ? 'wrong' : undefined} />
+          <Stat label="Cannot be reached" value={num(Math.max(0, (s.unreachable || 0) - (s.whatsapp_unreachable || 0)))} sub="no notifications, no confirmed email" tone={(s.unreachable || 0) - (s.whatsapp_unreachable || 0) > 0 ? 'wrong' : undefined} />
         </div>
-      ) : null}
-      {s?.whatsapp_unreachable ? (
-        <p className="mt-2 rounded-lg bg-watch-50 px-3 py-2 text-2xs text-watch-700">
-          {num(s.whatsapp_unreachable)} WhatsApp customer{s.whatsapp_unreachable === 1 ? '' : 's'} have no notifications and no confirmed email, so alerts cannot reach them
-          until they sign in at gaadipe.in and add an email or allow notifications. The chat asks them to as soon as they sign in.
-        </p>
       ) : null}
 
       <div className="mt-4 flex flex-wrap items-center gap-2">
@@ -88,10 +83,10 @@ export default function Customers() {
                         <div className="flex items-center gap-1.5 text-ink">{c.name || '-'}{c.is_new ? <span className="chip bg-good-50 text-good-700">new</span> : null}</div>
                         <div className="tabular text-2xs text-muted">{c.mobile}{c.email ? ` · ${c.email}` : ''}</div>
                       </td>
-                      <td className="td"><span className={`chip ${chCls}`}>{chLabel}</span>{c.wa_stop ? <div className="mt-1 text-2xs text-wrong-700">replied STOP</div> : null}</td>
+                      <td className="td"><span className={`chip ${chCls}`}>{chLabel}</span></td>
                       <td className="td whitespace-nowrap">
                         <div>{ago(c.last_seen)}</div>
-                        <div className="text-2xs text-muted">{c.web_last ? `web ${ago(c.web_last)}` : ''}{c.web_last && c.wa_last ? ' · ' : ''}{c.wa_last ? `WhatsApp ${ago(c.wa_last)}` : ''}</div>
+                        <div className="text-2xs text-muted">{c.web_last ? `web ${ago(c.web_last)}` : ''}</div>
                       </td>
                       <td className="td">
                         <div className="flex flex-wrap gap-1">

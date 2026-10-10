@@ -62,7 +62,7 @@ export default function Payments() {
         <>
           <div className="grid grid-cols-2 gap-3 md:grid-cols-4 xl:grid-cols-8">
             <Box label="Gross" v={inr(t.gross_paise)} sub={`${count(t.paid)} paid`} note="What customers paid, GST included." />
-            <Box label="Net contribution" v={inr(t.net_paise)} note="After GST, the gateway fee and its GST, WhatsApp messaging and the records API — the same as the Command Center." />
+            <Box label="Net contribution" v={inr(t.net_paise)} note="After GST, the gateway fee and its GST, messaging and the records API — the same as the Command Center." />
             <Box label="Success rate" v={t.success_pct == null ? 'No data' : `${t.success_pct}%`} sub={`${count(t.started_paid)} of ${count(t.started)} started`} note="Of the payments started in the period, how many were paid." />
             <Box label="Failure rate" v={t.failure_pct == null ? 'No data' : `${t.failure_pct}%`} sub={`${count(t.failed)} with a failed attempt`} bad={t.failed > 0} note="Payments where Razorpay reported at least one failed attempt (payment.failed)." />
             <Box label="Not completed" v={count(t.not_completed)} note="Started, not paid, and older than 30 minutes." />
@@ -99,7 +99,7 @@ export default function Payments() {
               </div>
             </div>
             <div className="card p-4">
-              <Hint note="Where each paying customer first came from: a website visit's source, a WhatsApp ad, or straight to the number.">
+              <Hint note="Where each paying customer first came from: the website visit's source (an ad, a search, a link) or a direct visit.">
                 <h2 className="text-sm font-semibold text-ink">Revenue by source</h2>
               </Hint>
               {!sum.by_source.length ? <p className="mt-2 text-2xs text-muted">No data</p> : (

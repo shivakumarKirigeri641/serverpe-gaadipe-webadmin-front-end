@@ -88,6 +88,8 @@ async function call(path, { method = 'GET', body, auth = true, timeoutMs = 25000
   if (body) headers['Content-Type'] = 'application/json';
   const token = getToken();
   if (auth && token) headers.Authorization = `Bearer ${token}`;
+  // The web admin shows the website only (user, 2026-10-10): the server leaves WhatsApp people and data out.
+  headers['X-View'] = 'web';
 
   let res; let data;
   const silent = quiet || background > 0;
@@ -100,6 +102,7 @@ async function call(path, { method = 'GET', body, auth = true, timeoutMs = 25000
       const outer = {};
       if (headers.Authorization) outer.Authorization = headers.Authorization;
       if (headers['X-Refresh']) outer['X-Refresh'] = headers['X-Refresh'];
+      outer['X-View'] = headers['X-View'];
       const out = await secureCall(P, { method, path, body, headers: outer, timeoutMs });
       res = { status: out.status, ok: out.ok };
       data = out.data || {};

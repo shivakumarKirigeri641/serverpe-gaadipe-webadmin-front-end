@@ -25,7 +25,7 @@ export async function stream({ onMessage, signal }) {
   if (!secureAvailable()) return false;
   const token = getToken();
   try {
-    await secureStream(P, { headers: token ? { Authorization: `Bearer ${token}` } : {}, onMessage, signal });
+    await secureStream(P, { headers: { 'X-View': 'web', ...(token ? { Authorization: `Bearer ${token}` } : {}) }, onMessage, signal });
   } catch (e) {
     if (e.status === 401 && e.code === 'signed_out') signedOut();
     throw e;

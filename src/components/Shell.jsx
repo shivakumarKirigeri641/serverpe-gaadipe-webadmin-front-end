@@ -221,7 +221,9 @@ const NAV = [
 // Also the screens that only worked through WhatsApp: hot leads (its 24-hour window),
 // RC-photo owner verification and claims, and gift reports used in the chat.
 const WHATSAPP_RETIRED = new Set(['/whatsapp', '/conversations', '/whatsapp/operations', '/campaigns', '/live', '/graphs/whatsapp',
-  '/hot-leads', '/owner-photos', '/owner-claims', '/gift-reports']);
+  '/hot-leads', '/owner-photos', '/owner-claims', '/gift-reports',
+  // WEB ONLY (user, 2026-10-10): the WhatsApp bot's free-check funnel.
+  '/why-not-paid']);
 
 /* Each group's icon in the tree. */
 const GROUP_ICON = {

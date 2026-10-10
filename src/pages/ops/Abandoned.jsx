@@ -36,7 +36,8 @@ export default function Abandoned() {
         {error && !d ? <Failed error={error} onRetry={load} /> : !d ? <Skeleton rows={6} /> : !d.rows.length ? <Empty>No abandoned payment in this window.</Empty> : (
           <>
             <Table head={<tr>{['Customer', 'Vehicle', 'Amount', 'Payment', 'Started', 'Last activity', 'Source · campaign', 'Channel', 'Reason', 'Since', ''].map((h, i) => <th key={i} className="th">{h}</th>)}</tr>}>
-              {d.rows.map((x) => (
+              {/* Web admin (2026-10-10): website payments only. */}
+              {d.rows.filter((x) => x.channel === 'web' || x.channel === 'website').map((x) => (
                 <tr key={x.id} className={flash(x)}>
                   <td className="td font-mono">{x.mobile || '—'}</td>
                   <td className="td font-mono">{x.reg_no ? <Link className="text-brand-deep hover:underline" to={`/vehicles/${x.reg_no}`}>{x.reg_no}</Link> : '—'}</td>
@@ -45,7 +46,7 @@ export default function Abandoned() {
                   <td className="td whitespace-nowrap">{dateTime(x.started_at)}</td>
                   <td className="td whitespace-nowrap">{x.last_activity ? ago(x.last_activity) : '—'}</td>
                   <td className="td">{x.source}{x.campaign ? <span className="text-2xs text-muted"> · {x.campaign}</span> : null}</td>
-                  <td className="td">{x.channel === 'web' || x.channel === 'website' ? 'Website' : 'WhatsApp'}</td>
+                  <td className="td">Website</td>
                   <td className="td"><Chip tone={x.reason === 'Left without paying' ? 'info' : 'watch'} note={x.reason_detail}>{x.reason}</Chip></td>
                   <td className="td tabular">{since(x.minutes_since)}</td>
                   <td className="td">{x.user_id && <Link className="btn-quiet !px-2 !py-1 text-2xs" to={`/journey?user=${x.user_id}`}>Journey</Link>}</td>

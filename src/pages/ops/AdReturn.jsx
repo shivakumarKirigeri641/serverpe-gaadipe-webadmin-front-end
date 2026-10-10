@@ -82,7 +82,7 @@ export default function AdReturn() {
               </tbody>
             </table>
           </div>
-          {!d.ads.some((a) => a.ad_key) && <p className="mt-3 text-sm text-muted">No one has come from a Meta ad in this period yet. Ads that open WhatsApp are recognised automatically.</p>}
+          {!d.ads.some((a) => a.ad_key) && <p className="mt-3 text-sm text-muted">No one has come from a Meta ad in this period yet.</p>}
         </>
       )}
     </Shell>

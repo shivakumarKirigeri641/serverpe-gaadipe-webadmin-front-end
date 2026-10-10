@@ -42,13 +42,6 @@ const CHECKS = [
     to: '/documents',
   },
   {
-    key: 'send_failures',
-    label: 'Messages WhatsApp rejected today',
-    good: 'Every message sent today was accepted by WhatsApp.',
-    bad: 'Meta rejected one or more messages. The usual causes are the 24-hour window closing, or a template that is not approved.',
-    to: '/live',
-  },
-  {
     key: 'lookup_failures',
     label: 'Failed lookups today',
     good: 'Every Government lookup today succeeded.',
@@ -73,7 +66,7 @@ const LEVEL = {
 function Dials({ s }) {
   const by = Object.fromEntries(s.services.map((x) => [x.key, x]));
   const t = s.thresholds || {};
-  const api = by.records_api?.metrics || {}; const wa = by.whatsapp_api?.metrics || {};
+  const api = by.records_api?.metrics || {};
   const rateTone = (err, lim) => (err == null ? 'muted' : err >= lim ? 'wrong' : err > 0 ? 'watch' : 'good');
   const pctTone = (v, lim) => (v == null ? 'muted' : v >= lim ? 'wrong' : v >= lim * 0.85 ? 'watch' : 'good');
   const lat = api.p95_ms; const latLim = t.api_p95_ms || 8000;
@@ -85,9 +78,6 @@ function Dials({ s }) {
         tone={rateTone(api.calls ? api.error_pct : null, t.api_error_pct || 20)} caption={api.calls ? `${api.calls} calls, last hour` : 'No calls in the last hour'} />
       <AnimatedGauge label="API latency (p95)" value={lat} max={latLim * 1.5} danger="high" bands={[0.7 / 1.5, 1 / 1.5]} text={lat == null ? null : `${lat} ms`}
         tone={lat == null ? 'muted' : lat > latLim ? 'wrong' : lat > latLim * 0.7 ? 'watch' : 'good'} caption={`Threshold ${latLim} ms · avg ${api.avg_ms ?? '—'} ms`} />
-      <AnimatedGauge label="WhatsApp success" value={wa.sent ? 100 - wa.error_pct : null} text={wa.sent ? `${Math.round(100 - wa.error_pct)}%` : null}
-        danger="low" bands={[1 - (t.wa_failure_pct || 10) / 200, 1 - (t.wa_failure_pct || 10) / 100]}
-        tone={rateTone(wa.sent ? wa.error_pct : null, t.wa_failure_pct || 10)} caption={wa.sent ? `${wa.sent} sent, last hour` : 'Nothing sent in the last hour'} />
       <AnimatedGauge label="Server memory" value={mem} text={mem == null ? null : `${mem}%`} danger="high" bands={[(t.memory_pct || 90) * 0.85 / 100, (t.memory_pct || 90) / 100]} tone={pctTone(mem, t.memory_pct || 90)} caption={`Alert at ${t.memory_pct || 90}%`} />
       <AnimatedGauge label="Disk used" value={disk} text={disk == null ? null : `${disk}%`} danger="high" bands={[(t.disk_pct || 80) * 0.85 / 100, (t.disk_pct || 80) / 100]} tone={pctTone(disk, t.disk_pct || 80)} caption={`Alert at ${t.disk_pct || 80}%`} />
     </div>

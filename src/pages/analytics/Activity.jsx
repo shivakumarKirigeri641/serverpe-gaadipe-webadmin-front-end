@@ -105,7 +105,6 @@ export default function Activity({ rows, grain, funnel, heat }) {
             <Tooltip contentStyle={TOOLTIP} />
             <Legend {...legendToggle()} wrapperStyle={{ fontSize: 11 }} />
             <Area {...chartAnim()} type="monotone" dataKey="ulip_calls" name="ULIP calls" stroke="#d92d20" fill="none" />
-            <Area {...chartAnim()} type="monotone" dataKey="messages" name="WhatsApp messages" stroke="#6b8380" fill="none" />
             <Area {...chartAnim()} type="monotone" dataKey="reports" name="Reports sold" stroke="#0d9488" fill="none" />
           </AreaChart>
         </Chart>
