@@ -18,7 +18,7 @@ import { ago, customerCode, dateTime, deviceCode, deviceOf, duration, num, place
  * device; vehicles, payments, reports; the API calls behind their vehicles;
  * internal notes. Website and WhatsApp are one account.
  */
-const TABS = [['activity', 'Latest visit'], ['sessions', 'Sessions'], ['devices', 'Devices'], ['vehicles', 'Vehicles'], ['payments', 'Payments & reports'], ['api', 'API trace'], ['notes', 'Notes']];
+const TABS = [['activity', 'Latest visit'], ['before', 'Checked before sign-in'], ['sessions', 'Sessions'], ['devices', 'Devices'], ['vehicles', 'Vehicles'], ['payments', 'Payments & reports'], ['api', 'API trace'], ['notes', 'Notes']];
 
 export default function CustomerRoom() {
   const { id } = useParams();
@@ -70,6 +70,10 @@ export default function CustomerRoom() {
             <Stat label="Alerts reach them" value={c.push_devices ? `🔔 ${c.push_devices}` : c.email_verified_at && !c.email_unsubscribed_at ? '✉️ email' : '⚠️ no way'} sub={c.push_devices && c.email_verified_at ? 'and email' : ''} tone={!c.push_devices && !c.email_verified_at ? 'wrong' : undefined} />
             <Stat label="First visit" value={c.first_visit ? ago(c.first_visit) : '—'} sub={c.first_visit ? dateTime(c.first_visit) : 'no website visit recorded'} />
             <Stat label="Last visit" value={c.last_visit ? ago(c.last_visit) : '—'} sub={c.last_visit ? dateTime(c.last_visit) : ''} />
+            {/* What the customer sees under the typing box (2026-10-10). */}
+            <Stat label="Checks left" value={data.checks_left?.unlimited ? 'Unlimited' : data.checks_left ? `${num(data.checks_left.today.left)} today` : '—'}
+              sub={data.checks_left?.month ? `${num(data.checks_left.month.left)} of ${num(data.checks_left.month.limit)} this month${data.checks_left.month.bonus ? ` (+${num(data.checks_left.month.bonus)} from reports)` : ''}` : data.checks_left?.tier || ''} />
+            <Stat label="Checked before sign-in" value={num((data.before_sign_in || []).length)} sub="free checks linked at sign-in" />
           </div>
 
           <div className="mt-6 flex flex-wrap gap-1.5">
@@ -77,6 +81,26 @@ export default function CustomerRoom() {
           </div>
           <div className="mt-3">
             {tab === 'activity' ? (data.latest ? <Timeline items={data.latest.timeline} linkedAt /> : <div className="card px-4 py-4 text-sm text-muted">No website visit recorded yet.</div>) : null}
+            {/* The free checks this customer's browsers made BEFORE signing in, linked at sign-in (2026-10-10). */}
+            {tab === 'before' ? ((data.before_sign_in || []).length ? (
+              <Table head={['Checked', 'Vehicle', 'Result', 'Device', 'IP · place', 'Came from', 'Linked', 'Trail']}>
+                {data.before_sign_in.map((a) => {
+                  const d = a.device || {};
+                  return (
+                    <tr key={a.id}>
+                      <td className="td whitespace-nowrap text-2xs">{dateTime(a.created_at)}</td>
+                      <td className="td"><Link className="plate hover:underline" to={`/vehicles/${a.reg_no}`}>{a.reg_no}</Link>
+                        <div className={`text-2xs ${a.in_my_vehicles ? 'text-good-700' : 'text-muted'}`}>{a.in_my_vehicles ? '✓ in My vehicles' : 'removed'}</div></td>
+                      <td className="td text-2xs">{a.outcome}{a.shown ? <div className="text-muted">{[a.shown.maker, a.shown.model].filter(Boolean).join(' ')}</div> : null}</td>
+                      <td className="td text-2xs">{[[d.vendor, d.model].filter(Boolean).join(' '), [d.os, d.os_version].filter(Boolean).join(' '), [d.browser, d.browser_version].filter(Boolean).join(' ')].filter(Boolean).join(' · ') || '—'}
+                        <div className="text-muted">{[d.screen, d.connection, d.timezone].filter(Boolean).join(' · ')}</div></td>
+                      <td className="td text-2xs"><span className="font-mono">{a.ip || '—'}</span><div className="text-muted">{[a.place?.city, a.place?.region].filter(Boolean).join(', ')}</div></td>
+                      <td className="td text-2xs">{a.source || 'direct'}{a.campaign ? <div className="text-muted">{a.campaign}</div> : null}</td>
+                      <td className="td text-2xs">{a.linked_at ? dateTime(a.linked_at) : '—'}</td>
+                      <td className="td text-2xs">{a.visitor_id ? <Link className="text-brand hover:underline" to={`/web/visitors?v=${encodeURIComponent(a.visitor_id)}`}>Full trail →</Link> : '—'}</td>
+                    </tr>);
+                })}
+              </Table>) : <div className="card px-4 py-4 text-sm text-muted">No free checks before signing in — this customer signed in first.</div>) : null}
             {tab === 'sessions' ? (
               <Table head={['Session', 'Status', 'Started', 'Duration', 'Last step', 'Source', 'Device']}>
                 {data.sessions.map((s) => (

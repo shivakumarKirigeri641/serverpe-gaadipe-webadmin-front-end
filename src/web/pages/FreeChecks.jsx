@@ -1,4 +1,5 @@
 import { Fragment, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { api } from '../lib/api';
 import { useLoad } from '../lib/useLoad';
 import { useRange } from '../components/Layout.jsx';
@@ -20,7 +21,7 @@ export default function FreeChecks() {
       {s ? (
         <>
           <h1 className="text-lg font-semibold">Free checks</h1>
-          <p className="text-2xs text-muted">Vehicle checks in the chat without signing in — after “Agree & check”, make, model name and fuel only.</p>
+          <p className="text-2xs text-muted">Vehicle checks in the chat without signing in (2 a day per browser and network; agreed by entering the number). When that browser signs in, each check is linked to the customer and the vehicle goes into their My vehicles.</p>
           <div className="mt-4 grid grid-cols-2 gap-3 md:grid-cols-4">
             <Stat label="Checks" trend="free_checks" value={num(s.checks)} sub={`${num(s.vehicles)} different vehicles`} />
             <Stat label="Found" value={num(s.found)} sub={`${pct(s.found, s.checks)} of checks`} tone={s.checks && s.found / s.checks < 0.5 ? 'wrong' : undefined} />
@@ -87,7 +88,17 @@ function Audit() {
                     <td className="td text-2xs">{[d.type, [d.vendor, d.model].filter(Boolean).join(' '), [d.os, d.os_version].filter(Boolean).join(' '), d.browser].filter(Boolean).join(' · ') || '—'}</td>
                     <td className="td text-2xs"><span className="font-mono">{r.ip || '—'}</span><div className="text-muted">{[p.city, p.region].filter(Boolean).join(', ')}</div></td>
                     <td className="td text-2xs">{r.source || 'direct'}{r.campaign ? <div className="text-muted">{r.campaign}</div> : null}</td>
-                    <td className="td text-2xs">{r.linked_mobile ? `…${String(r.linked_mobile).slice(-4)}` : '—'}</td>
+                    {/* Linked to the customer who then signed in on that browser (2026-10-10). */}
+                    <td className="td text-2xs" onClick={(e) => e.stopPropagation()}>
+                      {r.user_id ? (
+                        <>
+                          <Link className="text-brand hover:underline" to={`/web/customers/${r.user_id}`}>{r.linked_name || 'Customer'} · …{String(r.linked_mobile || '').slice(-4)} →</Link>
+                          <div className={r.in_my_vehicles ? 'text-good-700' : 'text-muted'}>{r.in_my_vehicles ? '✓ in their My vehicles' : 'removed from My vehicles'}</div>
+                          {r.linked_at ? <div className="text-muted">linked {dateTime(r.linked_at)}</div> : null}
+                        </>
+                      ) : '—'}
+                      {r.visitor_id ? <div><Link className="text-brand hover:underline" to={`/web/visitors?v=${encodeURIComponent(r.visitor_id)}`}>Full trail →</Link></div> : null}
+                    </td>
                   </tr>
                   {open === r.id ? (
                     <tr><td className="td bg-shell/40" colSpan={8}>
