@@ -19,6 +19,7 @@ import Sources from './pages/Sources.jsx';
 import Visitors from './pages/Visitors.jsx';
 import Customers from './pages/Customers.jsx';
 import FreeChecks from './pages/FreeChecks.jsx';
+import Reach from './pages/Reach.jsx';
 import Log from './pages/Log.jsx';
 import Emails from './pages/Emails.jsx';
 import Alerts from './pages/Alerts.jsx';
@@ -51,6 +52,7 @@ export default function WebApp() {
           <Route path="sessions/:id" element={<SessionRoom />} />
           <Route path="visitors" element={<Visitors />} />
           <Route path="free-checks" element={<FreeChecks />} />
+          <Route path="reach" element={<Reach />} />
           <Route path="payments" element={<Payments />} />
           <Route path="reports" element={<Reports />} />
           <Route path="referrals" element={<Referrals />} />

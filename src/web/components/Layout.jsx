@@ -30,7 +30,7 @@ export const WEB_TITLES = [
   ['/web/payments', 'Website payments'], ['/web/reports', 'Website reports'], ['/web/referrals', 'Website referrals'],
   ['/web/sources', 'Ads & sources'], ['/web/analytics', 'Live analytics'], ['/web/insights', 'Insights'], ['/web/api', 'API monitor (website)'],
   ['/web/health', 'System health (website)'], ['/web/alerts', 'Website alerts'], ['/web/audit', 'Website audit'], ['/web/server-log', 'Server log'],
-  ['/web/broadcast', 'Broadcast (email)'], ['/web/emails', 'Emails to you'], ['/web/admins', 'Admins'], ['/web/privacy', 'Privacy & monitoring'],
+  ['/web/broadcast', 'Broadcast (email)'], ['/web/reach', 'SMS & notifications'], ['/web/emails', 'Emails to you'], ['/web/admins', 'Admins'], ['/web/privacy', 'Privacy & monitoring'],
   ['/web/settings', 'Web admin settings'], ['/web/search', 'Search'], ['/web', 'Website overview'],
 ];
 const titleOf = (p) => (WEB_TITLES.find(([k]) => (k.endsWith('/') ? p.startsWith(k) : p === k || p.startsWith(`${k}/`))) || [, 'Website'])[1];
@@ -117,10 +117,10 @@ export default function Layout({ children }) {
   );
   const tabs = (
     <div className="flex items-center gap-2 py-2">
-      <div className="inline-flex rounded-lg border border-line bg-shell p-0.5" role="tablist" aria-label="Period">
+      <div className="inline-flex rounded-xl border border-line bg-shell p-0.5" role="tablist" aria-label="Period">
         {RANGES.map(([k, label]) => (
           <button key={k} role="tab" aria-selected={range === k} onClick={() => setRange(k)}
-            className={`rounded-md px-3 py-1 text-2xs font-semibold ${range === k ? 'bg-white text-ink shadow-card' : 'text-muted'}`}>{label}</button>
+            className={`rounded-lg px-3 py-1 text-2xs font-semibold ${range === k ? 'bg-white text-ink shadow-card' : 'text-muted'}`}>{label}</button>
         ))}
       </div>
       <span className="hidden text-2xs text-muted sm:inline">Indian time · website</span>

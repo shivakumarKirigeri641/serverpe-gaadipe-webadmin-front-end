@@ -51,6 +51,12 @@ export const api = {
   visitor: (id) => call(`/web/visitors/${encodeURIComponent(id)}`),
   customers: (params, quiet) => call(`/web/customers${qs(params)}`, { quiet }),
   freeChecks: (range, quiet) => call(`/web/free-checks${qs({ range })}`, { quiet }),
+  // SMS & notifications (2026-10-10).
+  reach: (quiet) => call('/web/reach', { quiet }),
+  reachUsers: (params, quiet) => call(`/web/reach/users${qs(params)}`, { quiet }),
+  reachUser: (id) => call(`/web/reach/users/${encodeURIComponent(id)}`),
+  reachSend: (body) => call('/web/reach/send', { method: 'POST', body }),
+  reachCancel: (id) => call(`/web/reach/queue/${encodeURIComponent(id)}/cancel`, { method: 'POST' }),
   freeChecksAudit: (days, quiet) => call(`/web/free-checks/audit${qs({ days })}`, { quiet }),
   requestCode: (mobile) => call('/session/otp', { method: 'POST', auth: false, body: { mobile } }),
   verifyCode: (mobile, code) => call('/session/verify', { method: 'POST', auth: false, body: { mobile, code } })

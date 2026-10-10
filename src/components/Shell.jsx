@@ -126,6 +126,8 @@ const NAV = [
     group: 'Broadcast',
     items: [
       { to: '/web/broadcast', label: 'Broadcast (email · RCS soon)', icon: MailIcon },
+      // SMS & notifications: status for every customer, manual sends (2026-10-10).
+      { to: '/web/reach', label: 'SMS & notifications', icon: BellIcon },
       { to: '/web/emails', label: 'Emails to you', icon: MailIcon },
     ],
   },
@@ -254,7 +256,7 @@ function highlight(text, q) {
   const w = String(q || '').trim().split(/\s+/)[0];
   const i = w ? text.toLowerCase().indexOf(w.toLowerCase()) : -1;
   if (i < 0) return text;
-  return <>{text.slice(0, i)}<mark className="rounded bg-brand/15 px-0.5 text-brand-deep">{text.slice(i, i + w.length)}</mark>{text.slice(i + w.length)}</>;
+  return <>{text.slice(0, i)}<mark className="rounded bg-copper/30 px-0.5 text-cream">{text.slice(i, i + w.length)}</mark>{text.slice(i + w.length)}</>;
 }
 
 /* The count beside a menu item (phase 6): people on WhatsApp now, open alerts
@@ -351,28 +353,28 @@ export default function Shell({ title, subtitle, actions, tabs, children }) {
       <BusyBar />
 
       <aside
-        className={`fixed inset-y-0 left-0 z-40 flex h-screen w-60 shrink-0 flex-col overflow-hidden border-r border-line bg-white transition-[width,transform] duration-200 ease-out lg:sticky lg:top-0 lg:translate-x-0 ${collapsed ? 'lg:w-16' : 'lg:w-60'} ${open ? 'translate-x-0' : '-translate-x-full'}`}>
+        className={`fixed inset-y-0 left-0 z-40 flex h-screen w-60 shrink-0 flex-col overflow-hidden border-r border-white/10 bg-forest text-cream transition-[width,transform] duration-200 ease-out lg:sticky lg:top-0 lg:translate-x-0 ${collapsed ? 'lg:w-16' : 'lg:w-60'} ${open ? 'translate-x-0' : '-translate-x-full'}`}>
         {/* FOLDED, THE WAY BACK MUST SHOW (user, 2026-09-28): the hidden title
             still took its width, so in the 64px rail the expand button was
             pushed past the edge and clipped — nothing to click. Folded, the
             header is just the logo (tap to expand) and a clear › under it. */}
-        <div className={`flex shrink-0 border-b border-line ${collapsed
+        <div className={`flex shrink-0 border-b border-white/10 ${collapsed
           ? 'h-14 items-center gap-2.5 px-5 lg:h-auto lg:flex-col lg:justify-center lg:gap-1.5 lg:px-0 lg:py-2.5'
           : 'h-14 items-center gap-2.5 px-5'}`}>
           <button type="button" onClick={() => collapsed && toggleCollapsed()} tabIndex={collapsed ? 0 : -1}
             aria-label={collapsed ? 'Expand sidebar' : undefined}
-            className={`grid h-7 w-7 shrink-0 place-items-center rounded-md bg-brand text-xs font-bold text-white ${collapsed ? 'lg:cursor-pointer lg:hover:ring-2 lg:hover:ring-brand/30' : 'cursor-default'}`}>
+            className={`auth-mark grid h-8 w-8 shrink-0 place-items-center rounded-lg text-[11px] font-bold text-white ${collapsed ? 'lg:cursor-pointer lg:hover:ring-2 lg:hover:ring-copper/50' : 'cursor-default'}`}>
             GP
           </button>
           <div className={`leading-tight ${collapsed ? 'lg:hidden' : ''}`}>
-            <div className="text-sm font-semibold text-ink">GaadiPe</div>
-            <div className="text-2xs text-muted">Web Admin</div>
+            <div className="font-display text-[15px] font-semibold tracking-tight text-cream">GaadiPe</div>
+            <div className="text-[10px] uppercase tracking-[0.16em] text-cream/45">Web Admin</div>
           </div>
           <Hint note={collapsed ? 'Expand the sidebar' : 'Collapse the sidebar to icons'}>
             <button type="button" onClick={toggleCollapsed} aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
               className={`m-press hidden place-items-center rounded-md lg:grid ${collapsed
-                ? 'h-7 w-9 border border-line bg-white text-base text-ink shadow-sm hover:border-brand hover:text-brand'
-                : 'ml-auto h-7 w-7 text-muted hover:bg-shell hover:text-ink'}`}>
+                ? 'h-7 w-9 border border-white/15 bg-white/5 text-base text-cream hover:border-copper hover:text-copper'
+                : 'ml-auto h-7 w-7 text-cream/50 hover:bg-white/5 hover:text-cream'}`}>
               <span className={`transition-transform duration-200 ${collapsed ? 'rotate-180' : ''}`}>‹</span>
             </button>
           </Hint>
@@ -380,7 +382,7 @@ export default function Shell({ title, subtitle, actions, tabs, children }) {
 
         {/* Search the menu (not the data — that is the header's search). */}
         {!collapsed && (
-          <div className="shrink-0 border-b border-line px-3 py-2.5">
+          <div className="shrink-0 border-b border-white/10 px-3 py-2.5">
             <div className="relative">
               <input value={q} onChange={(e) => { setQ(e.target.value); setHit(0); }}
                 onKeyDown={(e) => {
@@ -390,40 +392,40 @@ export default function Shell({ title, subtitle, actions, tabs, children }) {
                   if (e.key === 'Escape') { setQ(''); e.currentTarget.blur(); }
                   if (e.key === 'Enter' && res[hit]) { navigate(res[hit].item.to); setQ(''); setOpen(false); }
                 }}
-                className="input !py-1.5 !pl-8 !text-sm" placeholder="Find a screen…" aria-label="Find a screen in the menu" />
-              <span className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-muted"><SearchIcon /></span>
-              {q && <button type="button" onClick={() => setQ('')} aria-label="Clear menu search" className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-muted hover:text-ink">✕</button>}
+                className="input !border-white/10 !bg-white/5 !py-1.5 !pl-8 !text-sm !text-cream placeholder:!text-cream/35 focus:!border-copper/50 focus:!ring-copper/10" placeholder="Find a screen…" aria-label="Find a screen in the menu" />
+              <span className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-cream/40"><SearchIcon /></span>
+              {q && <button type="button" onClick={() => setQ('')} aria-label="Clear menu search" className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-cream/50 hover:text-cream">✕</button>}
             </div>
             {!q && (
-              <div className="mt-1.5 flex justify-end gap-3 text-[10px] text-muted">
-                <button type="button" className="hover:text-ink" onClick={() => { setShutActive(false); setExpanded(keepExpanded(visibleNav.map((g) => g.group))); }}>Expand all</button>
-                <button type="button" className="hover:text-ink" onClick={() => { setShutActive(true); setExpanded(keepExpanded([])); }}>Collapse all</button>
+              <div className="mt-1.5 flex justify-end gap-3 text-[10px] text-cream/40">
+                <button type="button" className="hover:text-cream" onClick={() => { setShutActive(false); setExpanded(keepExpanded(visibleNav.map((g) => g.group))); }}>Expand all</button>
+                <button type="button" className="hover:text-cream" onClick={() => { setShutActive(true); setExpanded(keepExpanded([])); }}>Collapse all</button>
               </div>
             )}
           </div>
         )}
 
         {/* Only the menu scrolls — the logo and the search stay in view. */}
-        <div ref={asideRef} onScroll={(e) => { navMemory.scroll = e.currentTarget.scrollTop; }} className="nav-scroll min-h-0 flex-1 overflow-y-auto overflow-x-hidden">
+        <div ref={asideRef} onScroll={(e) => { navMemory.scroll = e.currentTarget.scrollTop; }} className="nav-scroll nav-scroll-forest min-h-0 flex-1 overflow-y-auto overflow-x-hidden">
         <nav ref={navRef} className="relative px-3 py-3">
           {/* The active marker: one bar that glides to whichever item is open. */}
-          {marker && <span aria-hidden="true" className="absolute left-1 w-1 rounded-full bg-brand transition-all duration-300 ease-out"
+          {marker && <span aria-hidden="true" className="absolute left-1 w-1 rounded-full bg-copper transition-all duration-300 ease-out"
             style={{ top: marker.top + 6, height: Math.max(0, marker.height - 12) }} />}
           {q && !collapsed ? (
             /* Search results: every screen whose name or group matches, with where it lives. */
             (() => {
               const res = menuMatches(visibleNav, q);
-              if (!res.length) return <p className="px-2 py-3 text-sm text-muted">No screen matches “{q}”.</p>;
+              if (!res.length) return <p className="px-2 py-3 text-sm text-cream/50">No screen matches “{q}”.</p>;
               return (
                 <ul className="m-stagger space-y-0.5">
                   {res.map(({ item, group }, i) => (
                     <li key={item.to} style={{ '--i': i }}>
                       <NavLink to={item.to} end={item.end} onClick={() => { setQ(''); setOpen(false); }} onMouseEnter={() => setHit(i)}
-                        className={`flex items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-sm transition-colors duration-150 ${i === hit ? 'bg-shell text-ink' : 'text-body hover:bg-shell'}`}>
+                        className={`flex items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-sm transition-colors duration-150 ${i === hit ? 'bg-white/10 text-cream' : 'text-cream/70 hover:bg-white/5 hover:text-cream'}`}>
                         <item.icon />
                         <span className="min-w-0">
                           <span className="block truncate">{highlight(item.label, q)}</span>
-                          <span className="block truncate text-[10px] text-muted">{group} ›</span>
+                          <span className="block truncate text-[10px] text-cream/40">{group} ›</span>
                         </span>
                       </NavLink>
                     </li>
@@ -438,25 +440,25 @@ export default function Shell({ title, subtitle, actions, tabs, children }) {
             const GroupIcon = GROUP_ICON[section.group] || ListIcon;
             return (
               <div key={section.group} className="mb-1">
-                {collapsed ? <div className="mx-2 my-1.5 hidden border-t border-line lg:block" /> : null}
+                {collapsed ? <div className="mx-2 my-1.5 hidden border-t border-white/10 lg:block" /> : null}
                 {/* The parent node. */}
                 <button type="button" onClick={() => fold(section.group, hasActive)} aria-expanded={isOpen}
-                  className={`flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-sm font-semibold transition-colors duration-150 hover:bg-shell ${hasActive ? 'text-brand-deep' : 'text-ink'} ${collapsed ? 'lg:hidden' : ''}`}>
-                  <span className={`w-3 text-[11px] text-muted transition-transform duration-150 ${isOpen ? 'rotate-90' : ''}`}>▸</span>
+                  className={`flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-[11px] font-semibold uppercase tracking-[0.12em] transition-colors duration-150 hover:bg-white/5 ${hasActive ? 'text-copper' : 'text-cream/80'} ${collapsed ? 'lg:hidden' : ''}`}>
+                  <span className={`w-3 text-[11px] text-cream/35 transition-transform duration-150 ${isOpen ? 'rotate-90' : ''}`}>▸</span>
                   <GroupIcon />
                   <span className="flex-1 truncate text-left">{section.group}</span>
-                  <span className="rounded-full bg-shell px-1.5 text-[10px] font-normal text-muted">{items.length}</span>
+                  <span className="rounded-full bg-white/10 px-1.5 text-[10px] font-normal normal-case tracking-normal text-cream/50">{items.length}</span>
                 </button>
                 {/* Its screens, indented on a guide line. */}
                 {isOpen && (
-                  <ul className={`${collapsed ? '' : 'm-drop ml-[1.05rem] border-l border-line pl-2'} mb-1 mt-0.5`}>
+                  <ul className={`${collapsed ? '' : 'm-drop ml-[1.05rem] border-l border-white/10 pl-2'} mb-1 mt-0.5`}>
                     {items.map((item) => {
                       const on = isOn(item);
                       const link = (
                         <NavLink key={item.to} to={item.to} end={item.end} data-active={on ? '1' : '0'} aria-label={item.label}
                           onClick={() => setOpen(false)}
                           className={`mb-0.5 flex items-center gap-2 rounded-lg px-2 py-1.5 text-[13px] transition-colors duration-150 ${
-                            on ? 'bg-brand/8 font-semibold text-brand-deep' : 'text-body hover:bg-shell'} ${collapsed ? 'lg:justify-center lg:px-0' : ''}`}>
+                            on ? 'bg-white/10 font-semibold text-cream' : 'text-cream/65 hover:bg-white/5 hover:text-cream'} ${collapsed ? 'lg:justify-center lg:px-0' : ''}`}>
                           <span className={collapsed ? '' : 'lg:hidden'}><item.icon /></span>
                           <span className={`truncate transition-opacity duration-150 ${collapsed ? 'lg:hidden' : ''}`}>{item.label}</span>
                           {item.badge && !collapsed && <Badge kind={item.badge} b={badges} />}
@@ -473,18 +475,18 @@ export default function Shell({ title, subtitle, actions, tabs, children }) {
         </div>
       </aside>
 
-      {open && <div className="fixed inset-0 z-30 bg-ink/20 lg:hidden" onClick={() => setOpen(false)} />}
+      {open && <div className="fixed inset-0 z-30 bg-forest/50 backdrop-blur-sm lg:hidden" onClick={() => setOpen(false)} />}
 
       <div className="min-w-0 flex-1">
-        <header className="sticky top-0 z-20 flex h-14 items-center gap-3 border-b border-line bg-white/90 px-4 backdrop-blur lg:px-6">
+        <header className="sticky top-0 z-20 flex h-14 items-center gap-3 border-b border-line/80 bg-paper/80 px-4 backdrop-blur-xl lg:px-6">
           <button className="btn-quiet !px-2.5 !py-1.5 lg:hidden" onClick={() => setOpen(true)} aria-label="Menu">☰</button>
           <div className="min-w-0 flex-1">
-            <h1 className="flex items-center gap-2 truncate text-sm font-semibold text-ink">{title}<Updating /></h1>
+            <h1 className="flex items-center gap-2 truncate font-display text-[1.05rem] font-semibold tracking-tight text-ink">{title}<Updating /></h1>
             {subtitle && <p className="truncate text-2xs text-muted">{subtitle}</p>}
           </div>
           <button type="button" onClick={() => setPalette(true)} aria-label="Quick find (Ctrl K)"
-            className="no-print m-press hidden items-center gap-2 rounded-lg border border-line bg-white px-2.5 py-1.5 text-2xs text-muted hover:border-brand hover:text-ink md:inline-flex">
-            <span className="font-semibold text-ink">Quick find</span><kbd className="rounded border border-line px-1 text-[10px]">Ctrl K</kbd>
+            className="no-print m-press hidden items-center gap-2 rounded-xl border border-line bg-white/80 px-2.5 py-1.5 text-2xs text-muted hover:border-copper/50 hover:text-ink md:inline-flex">
+            <span className="font-semibold text-ink">Quick find</span><kbd className="rounded border border-line bg-shell px-1 text-[10px]">Ctrl K</kbd>
           </button>
           <button type="button" onClick={() => setPalette(true)} aria-label="Quick find"
             className="no-print grid h-8 w-8 place-items-center rounded-lg text-body hover:bg-shell md:hidden"><SearchIcon /></button>
@@ -495,7 +497,7 @@ export default function Shell({ title, subtitle, actions, tabs, children }) {
           <div className="no-print hidden items-center gap-2 border-l border-line pl-3 sm:flex">
             <div className="text-right leading-tight">
               <Link to="/preferences" className="text-2xs font-semibold text-ink hover:underline" title="Display & motion">{me?.name}</Link>
-              <div className="text-2xs capitalize text-muted">{me?.role}</div>
+              <div className="text-[10px] uppercase tracking-[0.12em] text-muted">{me?.role}</div>
             </div>
             <button className="btn-quiet !px-2.5 !py-1.5 text-2xs" onClick={signOut}>Sign out</button>
           </div>
@@ -504,9 +506,9 @@ export default function Shell({ title, subtitle, actions, tabs, children }) {
         {/* A screen made of tabs passes them here, so they sit under the
             header rather than floating over the sidebar. */}
         <StatusStrip />
-        {tabs && <div className="border-b border-line bg-white px-4 lg:px-6">{tabs}</div>}
+        {tabs && <div className="border-b border-line/80 bg-paper/70 px-4 lg:px-6">{tabs}</div>}
         {/* Each screen arrives with a short fade-rise (motion system). */}
-        <main className="m-enter px-4 py-5 lg:px-6"><OutageBanner />{children}</main>
+        <main className="m-enter px-4 py-6 lg:px-7"><OutageBanner />{children}</main>
       </div>
       <Toasts />
       <IconTips />
