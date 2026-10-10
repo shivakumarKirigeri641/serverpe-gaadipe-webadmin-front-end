@@ -73,8 +73,9 @@ export default function Customers() {
         <State loading={loading} error={error} onRetry={reload} empty={data && !data.rows.length ? 'No customers match.' : null}>
           {data?.rows.length ? (
             <>
-              <div className="mb-2 text-2xs text-muted">{num(data.total)} customer{data.total === 1 ? '' : 's'}</div>
-              <Table head={['Customer', 'Used', 'Last seen', 'Alerts reach them', 'Came from', 'Vehicles', 'Paid', 'Since']}>
+              <div className="mb-2 text-2xs text-muted">{num(data.total)} customer{data.total === 1 ? '' : 's'}
+                {data.checks_rule ? ` · checks: ${data.checks_rule.month} a month, +${data.checks_rule.per_report} for each report bought that month` : ''}</div>
+              <Table head={['Customer', 'Used', 'Last seen', 'Alerts reach them', 'Came from', 'Checks this month', 'Vehicles', 'Paid', 'Since']}>
                 {data.rows.map((c) => {
                   const [chLabel, chCls] = CH_CHIP[c.channel] || CH_CHIP.web;
                   return (
@@ -97,6 +98,14 @@ export default function Customers() {
                         </div>
                       </td>
                       <td className="td"><SourceChip source={c.source} /><div className="mt-1 text-2xs text-muted">{placeOf(c.place)}</div></td>
+                      {/* Used of the month's allowance, what is left, and what purchases added (2026-10-10). */}
+                      <td className="td tabular">
+                        {c.month_limit == null ? <><span>{num(c.month_used)}</span><div className="text-2xs text-muted">no cap</div></> : (
+                          <>
+                            <span className={c.month_used >= c.month_limit ? 'font-semibold text-wrong-700' : c.month_limit - c.month_used <= 5 ? 'font-semibold text-watch-700' : ''}>{num(c.month_used)} / {num(c.month_limit)}</span>
+                            <div className="text-2xs text-muted">{num(Math.max(0, c.month_limit - c.month_used))} left{c.month_bonus ? ` · +${num(c.month_bonus)} bought` : ''}</div>
+                          </>)}
+                      </td>
                       <td className="td tabular">{num(c.vehicles)}{c.watching ? <div className="text-2xs text-muted">{c.watching} watched</div> : null}</td>
                       <td className="td tabular">{c.paid ? <span className="font-semibold text-good-700">{c.paid} · {rupees(c.revenue_paise)}</span> : <span className="text-muted">—</span>}</td>
                       <td className="td whitespace-nowrap text-2xs text-muted">{dateTime(c.first_at)}</td>
