@@ -107,6 +107,18 @@ function TodaySummary({ s }) {
             </Hint>
           ))}
           <p className="mt-1 px-1 text-2xs text-muted">Referral is not measured: GaadiPe has no referral programme for now.</p>
+          {/* Free monitoring for one vehicle (2026-10-10): did the free 14 days turn into ₹19? */}
+          {s.free_monitor ? (
+            <Hint note="Signed-in customers who started the free 14-day monitoring in the last 30 days, how many are still running, and how many later paid ₹19 for that vehicle.">
+              <div className="mt-2 border-t border-line px-1 pt-2">
+                <div className="mb-0.5 text-2xs font-semibold uppercase tracking-wider text-muted">Free monitoring · 30 days</div>
+                <div className="flex items-baseline justify-between gap-3 py-0.5"><span className="text-sm text-body">Started</span><span className="tabular text-sm font-semibold text-ink">{num(s.free_monitor.started)}</span></div>
+                <div className="flex items-baseline justify-between gap-3 py-0.5"><span className="text-sm text-body">Running now</span><span className="tabular text-sm font-semibold text-ink">{num(s.free_monitor.active)}</span></div>
+                <div className="flex items-baseline justify-between gap-3 py-0.5"><span className="text-sm text-body">Then paid ₹19</span>
+                  <span className="tabular text-sm font-semibold text-ink">{num(s.free_monitor.converted)}{s.free_monitor.started ? ` (${Math.round((s.free_monitor.converted / s.free_monitor.started) * 100)}%)` : ''}</span></div>
+              </div>
+            </Hint>
+          ) : null}
         </div>
         <div className="p-4">
           <div className="mb-1 text-2xs font-semibold uppercase tracking-wider text-muted">Comparison</div>
