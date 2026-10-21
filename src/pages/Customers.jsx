@@ -141,12 +141,12 @@ export default function Customers() {
                 : data.today.customers_yesterday_full != null
                   ? <>+{count(data.today.customers_today)} today vs +{count(data.today.customers_yesterday_full)} yesterday · <Delta now={data.today.customers_today} before={data.today.customers_yesterday_full} /></>
                   : 'all time', null,
-              q || filter !== 'all' ? 'Customers matching your search or filter.' : 'Everyone who has used GaadiPe, all time. Below: new website customers today against the whole of yesterday (IST).'],
+              q || filter !== 'all' ? 'Customers matching your search or filter.' : 'Everyone who has used GaadiPe, all time. Below: new customers today against the whole of yesterday (IST) — website, and WhatsApp before 21 Oct.'],
             // Full reports and vehicle checks, all time with today (user, 2026-10-03).
             ...(data.today.reports_total != null ? [
               ['Full reports', data.today.reports_total,
                 <>+{count(data.today.reports_today)} today vs +{count(data.today.reports_yesterday_full)} yesterday · <Delta now={data.today.reports_today} before={data.today.reports_yesterday_full} /></>, null,
-                'Paid full reports, all time. Below: bought on the website today against the whole of yesterday (IST).'],
+                'Paid full reports, all time. Below: bought today against the whole of yesterday (IST) — website, and WhatsApp before 21 Oct.'],
               ['Vehicle checks', data.today.checks_total,
                 <>
                   {data.today.checks_distinct != null && (
@@ -156,12 +156,12 @@ export default function Customers() {
                 </>, null,
                 `Every vehicle check customers made, all time — a repeat of the same vehicle included. Distinct: different vehicles. Repeated: the rest. ${data.today.repeats_since
                   ? `Repeats are counted from ${date(data.today.repeats_since)}; earlier repeats were not recorded.`
-                  : 'Repeats are counted from the first one recorded after this update went live; earlier repeats were not recorded.'} Below: website checks today against the whole of yesterday (IST).`],
+                  : 'Repeats are counted from the first one recorded after this update went live; earlier repeats were not recorded.'} Below: checks today against the whole of yesterday (IST) — website, and WhatsApp before 21 Oct.`],
             ] : []),
             ['New today', data.today.joined, <>vs {count(data.today.joined_yesterday)} yesterday · <Delta now={data.today.joined} before={data.today.joined_yesterday} /></>, 'joined',
-              'New website customers since midnight (IST), against yesterday up to the same time. Their rows are tinted green. Tap to sort newest first.'],
+              'New customers since midnight (IST) — website, and WhatsApp before 21 Oct — against yesterday up to the same time. Their rows are tinted green. Tap to sort newest first.'],
             ['Active today', data.today.active, <>vs {count(data.today.active_yesterday)} yesterday · <Delta now={data.today.active} before={data.today.active_yesterday} /></>, 'last_seen',
-              'Different people who did anything on the website since midnight (IST) — a check, a sign-in, a payment — against yesterday up to the same time. Tap to sort by last seen.'],
+              'Different people who did anything since midnight (IST), on the website or (before 21 Oct) WhatsApp — a check, a sign-in, a payment — against yesterday up to the same time. Tap to sort by last seen.'],
           ].map(([label, value, sub, sortBy, note]) => (
             <Hint key={label} note={note}>
               <button type="button" disabled={!sortBy} onClick={() => sortBy && setSort(sortBy)}
