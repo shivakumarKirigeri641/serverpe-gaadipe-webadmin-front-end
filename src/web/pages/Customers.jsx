@@ -13,13 +13,14 @@ import { ago, dateTime, num, placeOf, rupees } from '../lib/format';
  * that WhatsApp is disabled — browser notifications, a confirmed email, or
  * nothing (they only hear from GaadiPe when they open the site).
  */
-// Web admin (2026-10-10): website customers only — no WhatsApp filters.
-const CHANNELS = [['all', 'Everyone']];
+// Every customer again (user, 2026-10-21: WhatsApp disabled for good — "bring all the WhatsApp customers
+// here as well"). Those who came through WhatsApp are website customers now; the chip says where they came from.
+const CHANNELS = [['all', 'Everyone'], ['web', 'Website only'], ['whatsapp', 'From WhatsApp (not signed in yet)'], ['both', 'WhatsApp, now on the website']];
 const REACH = [['all', 'Any'], ['push', '🔔 Notifications'], ['email', '✉️ Email'], ['none', '⚠️ Cannot be reached']];
 const CH_CHIP = {
   web: ['Website', 'bg-brand/10 text-brand'],
-  whatsapp: ['Website', 'bg-brand/10 text-brand'],
-  both: ['Website', 'bg-brand/10 text-brand'],
+  whatsapp: ['From WhatsApp', 'bg-watch-50 text-watch-700'],
+  both: ['WhatsApp → website', 'bg-good-50 text-good-700'],
 };
 
 export default function Customers() {
@@ -29,7 +30,8 @@ export default function Customers() {
   const [term, setTerm] = useState('');
   const [channel, setChannel] = useState('all');
   const [reach, setReach] = useState('all');
-  const [everyone, setEveryone] = useState(false);
+  // Everyone ever by default (2026-10-21): the WhatsApp customers are mostly not active this week.
+  const [everyone, setEveryone] = useState(true);
   useEffect(() => { const t = setTimeout(() => setTerm(q.trim()), 400); return () => clearTimeout(t); }, [q]);
   const { data, error, loading, reload } = useLoad(
     (quiet) => api.customers({ range, q: term, channel, reach, active: everyone ? 'all' : '', limit: 150 }, quiet),
@@ -42,17 +44,17 @@ export default function Customers() {
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <h1 className="text-lg font-semibold">Customers</h1>
-          <p className="text-2xs text-muted">Everyone who signed in on gaadipe.in — one account per mobile number.</p>
+          <p className="text-2xs text-muted">Everyone who used GaadiPe — on gaadipe.in, or on WhatsApp before 21 Oct — one account per mobile number.</p>
         </div>
         <Search value={q} onChange={setQ} placeholder="Mobile, name or email" />
       </div>
 
       {s ? (
         <div className="mt-4 grid grid-cols-2 gap-3 md:grid-cols-4">
-          <Stat label="Website customers" value={num((s.web_only || 0) + (s.both || 0))} sub="signed in on gaadipe.in" />
+          <Stat label="Customers" value={num(s.total)} sub={`${num((s.web_only || 0) + (s.both || 0))} on the website · ${num(s.whatsapp_only)} from WhatsApp, not signed in yet`} />
           <Stat label="Get notifications" value={num(s.push)} sub="browser alerts on a phone" tone={s.push ? 'good' : undefined} />
           <Stat label="Confirmed email" value={num(s.email)} sub="alerts by email" tone={s.email ? 'good' : undefined} />
-          <Stat label="Cannot be reached" value={num(Math.max(0, (s.unreachable || 0) - (s.whatsapp_unreachable || 0)))} sub="no notifications, no confirmed email" tone={(s.unreachable || 0) - (s.whatsapp_unreachable || 0) > 0 ? 'wrong' : undefined} />
+          <Stat label="Cannot be reached" value={num(s.unreachable)} sub={`no notifications, no confirmed email · ${num(s.whatsapp_unreachable)} of them from WhatsApp (SMS only)`} tone={s.unreachable ? 'wrong' : undefined} />
         </div>
       ) : null}
 
@@ -87,7 +89,7 @@ export default function Customers() {
                       <td className="td"><span className={`chip ${chCls}`}>{chLabel}</span></td>
                       <td className="td whitespace-nowrap">
                         <div>{ago(c.last_seen)}</div>
-                        <div className="text-2xs text-muted">{c.web_last ? `web ${ago(c.web_last)}` : ''}</div>
+                        <div className="text-2xs text-muted">{[c.web_last ? `web ${ago(c.web_last)}` : '', c.wa_last ? `WhatsApp ${ago(c.wa_last)}` : ''].filter(Boolean).join(' · ')}</div>
                       </td>
                       <td className="td">
                         <div className="flex flex-wrap gap-1">
