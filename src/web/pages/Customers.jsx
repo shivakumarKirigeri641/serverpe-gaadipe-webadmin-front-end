@@ -16,7 +16,9 @@ import { ago, dateTime, num, placeOf, rupees } from '../lib/format';
 // Every customer again (user, 2026-10-21: WhatsApp disabled for good — "bring all the WhatsApp customers
 // here as well"). Those who came through WhatsApp are website customers now; the chip says where they came from.
 const CHANNELS = [['all', 'Everyone'], ['web', 'Website only'], ['whatsapp', 'From WhatsApp (not signed in yet)'], ['both', 'WhatsApp, now on the website']];
-const REACH = [['all', 'Any'], ['push', '🔔 Notifications'], ['email', '✉️ Email'], ['none', '⚠️ Cannot be reached']];
+const REACH = [['all', 'Any'], ['push', '🔔 Notifications'], ['email', '✉️ Email'], ['none', '⚠️ Cannot be reached'],
+  // Came through the current WhatsApp number (2026-10-23) — the list to SMS if that number is ever disabled.
+  ['wa_number', '💬 Came via current WhatsApp no.']];
 const CH_CHIP = {
   web: ['Website', 'bg-brand/10 text-brand'],
   whatsapp: ['From WhatsApp', 'bg-watch-50 text-watch-700'],
@@ -50,11 +52,17 @@ export default function Customers() {
       </div>
 
       {s ? (
-        <div className="mt-4 grid grid-cols-2 gap-3 md:grid-cols-4">
+        <div className="mt-4 grid grid-cols-2 gap-3 md:grid-cols-5">
           <Stat label="Customers" value={num(s.total)} sub={`${num((s.web_only || 0) + (s.both || 0))} on the website · ${num(s.whatsapp_only)} from WhatsApp, not signed in yet`} />
           <Stat label="Get notifications" value={num(s.push)} sub="browser alerts on a phone" tone={s.push ? 'good' : undefined} />
           <Stat label="Confirmed email" value={num(s.email)} sub="alerts by email" tone={s.email ? 'good' : undefined} />
           <Stat label="Cannot be reached" value={num(s.unreachable)} sub={`no notifications, no confirmed email · ${num(s.whatsapp_unreachable)} of them from WhatsApp (SMS only)`} tone={s.unreachable ? 'wrong' : undefined} />
+          {/* Who came through the current WhatsApp number (2026-10-23) — tap to list them. */}
+          {data?.wa_number ? (
+            <button type="button" className="text-left" onClick={() => setReach('wa_number')}>
+              <Stat label="Via WhatsApp number" value={num(s.wa_number)} sub={`wrote to +${data.wa_number} · tap to list (SMS them if it is disabled)`} />
+            </button>
+          ) : null}
         </div>
       ) : null}
 
@@ -97,6 +105,8 @@ export default function Customers() {
                           {c.email_ok ? <span className="chip bg-good-50 text-good-700">✉️ email</span>
                             : c.email ? <span className="chip bg-watch-50 text-watch-700">✉️ not confirmed</span> : null}
                           {!c.push_devices && !c.email_ok ? <span className="chip bg-wrong-50 text-wrong-700">⚠️ none</span> : null}
+                          {/* The WhatsApp business number they came through (migration 210). */}
+                          {c.wa_business_number ? <span className="chip bg-good-50 text-good-700" title={`First wrote to +${c.wa_business_number}`}>💬 …{String(c.wa_business_number).slice(-5)}</span> : null}
                         </div>
                       </td>
                       <td className="td"><SourceChip source={c.source} /><div className="mt-1 text-2xs text-muted">{placeOf(c.place)}</div></td>
