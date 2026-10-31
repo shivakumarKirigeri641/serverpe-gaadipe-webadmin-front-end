@@ -18,7 +18,7 @@ const KINDS = [
 
 const EMAIL_NAMES = {
   visit: 'website visit', sign_in: 'sign-in', web_check: 'website check', chat_check: 'free chat check', push_on: 'notifications on',
-  payment: 'payment', left_at_pay: 'unpaid ₹19', contact: 'contact message', feedback: 'feedback',
+  payment: 'payment', left_at_pay: 'unpaid report', contact: 'contact message', feedback: 'feedback',
   daily_summary: 'daily summary', alert: 'alert', security: 'security',
 };
 
@@ -29,7 +29,7 @@ function say(r) {
   switch (r.kind) {
     case 'visit':
       if (r.what === 'session_started') return ['👀', 'A visitor arrived', r.detail];
-      if (r.what === 'payment_page_viewed') return ['💳', 'The ₹19 payment page was opened', ''];
+      if (r.what === 'payment_page_viewed') return ['💳', 'The report payment page was opened', ''];
       if (r.what === 'page_view') return ['📄', `Opened ${r.detail || 'a page'}`, ''];
       return ['👆', `Tapped ${r.what.replace(/_/g, ' ')}`, r.detail];
     case 'chat':

@@ -64,7 +64,7 @@ export default function Fleets() {
             ['Fleet', 'Company, contact and the email the daily report goes to.'],
             ['Vehicles', 'Vehicles on the fleet now. Below: how many were checked successfully.'],
             ['Status', 'Where the fleet is: Draft → Quoted → Paid (approve) → Active. Expired means the period ended unpaid.'],
-            ['Monitoring', 'The current 28-day period, and days left.'],
+            ['Monitoring', 'The current 50-day period, and days left.'],
             ['Last report', 'The last evening Excel email that went out.'],
             ['Paid so far', 'Everything this fleet has paid, GST included.'],
             ['Latest payment link', 'The newest quotation or renewal link and whether it was paid.'],

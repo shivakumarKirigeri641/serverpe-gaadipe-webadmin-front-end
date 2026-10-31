@@ -99,7 +99,7 @@ export function StatusChip({ status }) {
 export const STEP = {
   welcome: 'Just arrived', home: 'Home page', checking: 'Checking a vehicle', viewing: 'Looking at a vehicle',
   signing_in: 'Signing in — mobile number', code: 'Signing in — entering the code', name: 'Adding a name', email: 'Adding an email',
-  paying: 'At the ₹19 payment', paid: 'Back from paying', reports: 'Reading reports', menu: 'In the menu', profile: 'In the profile',
+  paying: 'At the report payment', paid: 'Back from paying', reports: 'Reading reports', menu: 'In the menu', profile: 'In the profile',
 };
 export const stepWords = (s) => STEP[s] || (s ? s.replace(/_/g, ' ') : '—');
 

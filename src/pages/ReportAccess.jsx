@@ -32,7 +32,7 @@ export default function ReportAccess() {
   return (
     <Shell title="Report access" subtitle="Grant or take away one customer's full report for one vehicle — rare, and audited.">
       <Banner tone="wrong" className="mb-4">
-        <b>Danger zone.</b> Granting gives a ₹19 report away free. Revoking stops a customer's report, daily updates and
+        <b>Danger zone.</b> Granting gives a ₹29 report away free. Revoking stops a customer's report, daily updates and
         alerts at once — if they paid, a refund is due under the refund policy. Use only when really needed.
       </Banner>
 
@@ -113,7 +113,7 @@ function Confirm({ acting, customer, onClose, onDone }) {
           disabled={busy || typed !== word || reason.trim().length < 5}>{busy ? 'Working…' : grant ? 'Grant free report' : 'Revoke report'}</button></>}>
       <Banner tone="wrong">
         {grant
-          ? <>GaadiPe <b>loses ₹19</b>: this customer gets the full record, the PDF and 28 days of daily updates without paying. No invoice is issued.</>
+          ? <>GaadiPe <b>loses ₹29</b>: this customer gets the full record, the PDF and 50 days of daily updates without paying. No invoice is issued.</>
           : <>The customer <b>loses access now</b>: the report download, alerts and daily emails stop.
              {paid ? <> They <b>paid</b> for it — under the refund policy a refund is due unless they broke the terms.</> : null}</>}
       </Banner>

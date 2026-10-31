@@ -101,7 +101,7 @@ const GROUPS = [
       alert_api_p95_ms: 'Records API: warn when the slowest 5% of calls take longer than this, in milliseconds.',
       alert_payment_failures_hour: 'Payments: warn when this many payments have a failed attempt in one hour.',
       alert_traffic_spike_pct: 'Traffic: note when website visitors this hour are this % above the 7-day hourly average (at least 20).',
-      alert_daily_revenue_target_paise: 'Good news when the day passes this revenue, in paise (1900 = ₹19). 0 = off.',
+      alert_daily_revenue_target_paise: 'Good news when the day passes this revenue, in paise (2900 = ₹29). 0 = off.',
       notify_alerts: 'Email you when a critical or warning alert opens.',
     },
   },
@@ -111,7 +111,7 @@ const GROUPS = [
     keys: {
       admin_alert_emails: 'Who receives them — comma-separated. Empty means ADMINMAIL from the server settings.',
       notify_payments: 'An email for every successful payment, with the full breakdown and the invoice attached.',
-      notify_left_at_payment: 'An email when someone opens the ₹19 payment link and has not paid 30 minutes later.',
+      notify_left_at_payment: 'An email when someone opens the ₹29 payment link and has not paid 30 minutes later.',
       notify_feedback: 'An email for every feedback note.',
       notify_sign_ins: 'An email each time someone signs in to gaadipe.in: who, device, place, IP.',
       notify_contact: 'An email for every message sent through the website’s Contact form.',
@@ -146,7 +146,7 @@ const GROUPS = [
     title: 'Referral offer (QuizPe)',
     note: 'Refer QuizPe to a parent → one free full report when they buy QuizPe premium. Nothing is ever sent to the parent. QuizPe is checked read-only.',
     keys: {
-      report_unlock: 'How a full report is unlocked: pay (₹19 only), both (₹19 or refer), refer (referral only).',
+      report_unlock: 'How a full report is unlocked: pay (₹29 only), both (₹29 or refer), refer (referral only).',
       referral_enabled: 'Referrals on (true) or paused (false). Earned rewards stay usable.',
       referral_reward: 'The reward: free_report. (flat_off is reserved for a ₹10/₹20 discount later.)',
       referral_flat_off_paise: 'For flat_off only: the discount in paise (1000 = ₹10).',

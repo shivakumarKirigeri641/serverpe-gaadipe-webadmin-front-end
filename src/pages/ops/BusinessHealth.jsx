@@ -114,7 +114,7 @@ function TodaySummary({ s }) {
                 <div className="mb-0.5 text-2xs font-semibold uppercase tracking-wider text-muted">Free monitoring · 30 days</div>
                 <div className="flex items-baseline justify-between gap-3 py-0.5"><span className="text-sm text-body">Started</span><span className="tabular text-sm font-semibold text-ink">{num(s.free_monitor.started)}</span></div>
                 <div className="flex items-baseline justify-between gap-3 py-0.5"><span className="text-sm text-body">Running now</span><span className="tabular text-sm font-semibold text-ink">{num(s.free_monitor.active)}</span></div>
-                <div className="flex items-baseline justify-between gap-3 py-0.5"><span className="text-sm text-body">Then paid ₹19</span>
+                <div className="flex items-baseline justify-between gap-3 py-0.5"><span className="text-sm text-body">Then paid ₹29</span>
                   <span className="tabular text-sm font-semibold text-ink">{num(s.free_monitor.converted)}{s.free_monitor.started ? ` (${Math.round((s.free_monitor.converted / s.free_monitor.started) * 100)}%)` : ''}</span></div>
               </div>
             </Hint>

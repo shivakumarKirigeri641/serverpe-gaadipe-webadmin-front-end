@@ -108,7 +108,7 @@ export default function Dashboard() {
             <Row label="Gross collected" value={rupees(m.gross_paise, { decimals: true })}
               note="Everything customers paid, GST included — the figure Razorpay shows." />
             <Row label="GST inside it (18%)" value={`− ${rupees(m.gst_paise, { decimals: true })}`}
-              note="Prices are GST-inclusive, so the tax is backed out of the price rather than added to it. ₹19 is ₹16.10 + ₹2.90." />
+              note="Prices are GST-inclusive, so the tax is backed out of the price rather than added to it. ₹29 is ₹24.58 + ₹4.42." />
             <Row label={`Razorpay fee (${m.fee_percent}% + GST)`}
               value={`− ${rupees(m.gateway_fee_paise + m.gateway_fee_gst_paise, { decimals: true })}`}
               note="An estimate from the fee percentage in settings, not a figure read from Razorpay. UPI is nil today and cards are about 2% — correct it in Prices & settings and every figure here follows." />

@@ -71,7 +71,7 @@ export default function Finance() {
                 <Row label="Gross collected" value={rupees(data.gross_paise, { decimals: true })}
                   note="Every captured payment in this period, GST included." />
                 <Row label="Less GST at 18%" value={`− ${rupees(data.gst_paise, { decimals: true })}`}
-                  note="Prices are GST-inclusive, so the tax is backed out of the price rather than added. ₹19 is ₹16.10 + ₹2.90." />
+                  note="Prices are GST-inclusive, so the tax is backed out of the price rather than added. ₹29 is ₹24.58 + ₹4.42." />
                 <Row label={`Less Razorpay fee (${data.fee_percent}%)`}
                   value={`− ${rupees(data.gateway_fee_paise, { decimals: true })}`}
                   note="Estimated from the fee percentage in settings, not read from Razorpay. Correct it there and every figure here follows." />

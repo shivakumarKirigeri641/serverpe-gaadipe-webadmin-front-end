@@ -118,7 +118,7 @@ export default function Revenue({ rows, grain }) {
           </ComposedChart>
         </Chart>
 
-        <Chart title="Average order value" note="Gross per payment. Flat at ₹19 while there is one product.">
+        <Chart title="Average order value" note="Gross per payment. Flat at ₹29 while there is one product.">
           <LineChart data={data}>
             <CartesianGrid strokeDasharray="3 3" stroke="#e3ecea" />
             <XAxis dataKey="label" tick={AXIS} />

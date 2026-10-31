@@ -41,7 +41,7 @@ export default function WhyNotPaid() {
               <div key={g.key} className="card overflow-hidden">
                 <div className={`bg-gradient-to-r ${TONE[g.key]} px-4 py-2 text-sm font-semibold text-white`}>{ICON[g.key]} {g.label}</div>
                 <div className="space-y-2 p-4">
-                  {[['Saw the free check', g.shown], ['Tapped ₹19', g.tapped], ['Got the payment link', g.link], ['Paid', g.paid]].map(([l, v], i) => (
+                  {[['Saw the free check', g.shown], ['Tapped Full report', g.tapped], ['Got the payment link', g.link], ['Paid', g.paid]].map(([l, v], i) => (
                     <div key={l}>
                       <div className="flex justify-between text-2xs"><span className="text-body">{l}</span><b className="text-ink">{v}</b></div>
                       <div className="mt-1 h-2 overflow-hidden rounded-full bg-shell">

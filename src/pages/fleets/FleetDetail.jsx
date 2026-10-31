@@ -221,7 +221,7 @@ function QuoteDialog({ d, renewal, busy, onClose, onSend }) {
       onClose={onClose} busy={busy}
       footer={<><button className="btn-quiet" onClick={onClose}>Cancel</button>
         <button className="btn-primary" disabled={busy || short || !(Number(rs) > 0)} onClick={() => onSend(Math.round(Number(rs) * 100))}>Email quotation & payment link</button></>}>
-      <Field label="Amount, GST included (₹)" hint="Pre-filled as vehicles × ₹19. Change it for a special price.">
+      <Field label="Amount, GST included (₹)" hint="Pre-filled as vehicles × ₹29. Change it for a special price.">
         <input className="input tabular" inputMode="decimal" value={rs} onChange={(e) => setRs(e.target.value.replace(/[^\d.]/g, ''))} />
       </Field>
       {short && <p className="mt-2 text-sm text-wrong-700">A fleet needs at least {d.suggest.min_vehicles} vehicles — add more first.</p>}
